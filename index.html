@@ -1,0 +1,3534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#00d4ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Watermark">
+<meta name="description" content="Watermark foto dengan lokasi GPS, tanggal, dan metadata EXIF">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192x192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192x192.png">
+<title>Photo Watermark — Lokasi & Tanggal</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onerror="console.warn('Leaflet failed to load')"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" onerror="">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0c1017; --card: #141b27; --input: #1a2332;
+  --accent: #00d4ff; --accent2: #7c5cfc;
+  --text: #eef2f7; --text2: #8b9bb4; --muted: #556782;
+  --border: #1e2a3a; --ok: #00e09e; --err: #ff5c72;
+  --r: 14px; --rs: 10px;
+}
+body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; line-height:1.5; -webkit-font-smoothing:antialiased; }
+.wrap { max-width:540px; margin:0 auto; padding:16px; padding-bottom:110px; }
+.hdr { text-align:center; padding:20px 0 16px; }
+.hdr h1 { font-size:24px; font-weight:700; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.hdr p { font-size:12px; color:var(--muted); margin-top:2px; letter-spacing:.5px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); padding:16px; margin-bottom:12px; }
+.ct { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+.stog { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+.sbtn { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; border:2px solid var(--border); border-radius:var(--rs); background:var(--input); color:var(--text2); font-family:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all .2s; }
+.sbtn:hover { border-color:var(--muted); }
+.sbtn.on { border-color:var(--accent); background:rgba(0,212,255,.12); color:var(--accent); }
+#camBox { position:relative; width:100%; height:0; padding-top:75%; background:#000; border-radius:var(--rs); overflow:hidden; display:none; }
+#camBox.on { display:block; }
+#vid { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+#capBtn { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); width:64px; height:64px; border-radius:50%; border:4px solid #fff; background:rgba(255,255,255,.3); cursor:pointer; transition:all .15s;  }
+#capBtn:active { transform:translateX(-50%) scale(.9); background:rgba(255,255,255,.4); }
+#swCam { position:absolute; top:12px; right:12px; width:38px; height:38px; border-radius:50%; border:none; background:rgba(0,0,0,.7); color:#fff; font-size:18px; cursor:pointer;  }
+#uplBox { display:none; }
+#uplBox.on { display:block; }
+.upz { border:2px dashed var(--border); border-radius:var(--rs); padding:36px 16px; text-align:center; cursor:pointer; transition:all .2s; }
+.upz:hover { border-color:var(--accent); background:rgba(0,212,255,.12); }
+.upz .ic { font-size:40px; margin-bottom:8px; }
+.upz p { font-size:14px; color:var(--text2); }
+.upz small { font-size:12px; color:var(--muted); }
+#fIn { display:none; }
+#prevSec { display:none; }
+#prevSec.on { display:block; }
+.pw { position:relative; width:100%; border-radius:var(--rs); overflow:hidden; background:#000; }
+.pw img { width:100%; display:block; }
+.prem { position:absolute; top:8px; right:8px; width:34px; height:34px; border-radius:50%; border:none; background:rgba(0,0,0,.75); color:#fff; font-size:18px; cursor:pointer;  }
+.eg { display:flex; flex-direction:column; gap:8px; }
+.er { display:flex; align-items:center; gap:8px; }
+.er .l { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; color:var(--muted); min-width:60px; text-transform:uppercase; letter-spacing:.5px; }
+.er input,.er textarea { flex:1; background:var(--input); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:13px; padding:8px 10px; outline:none; transition:border-color .2s; }
+.er input:focus,.er textarea:focus { border-color:var(--accent); }
+.er textarea { resize:vertical; min-height:40px; font-family:'DM Sans',sans-serif; font-size:13px; }
+.er input[type="datetime-local"] { font-family:'DM Sans',sans-serif;  }
+.bsm { display:inline-flex; align-items:center; gap:4px; background:var(--input); border:1px solid var(--border); border-radius:8px; color:var(--text2); font-family:inherit; font-size:12px; font-weight:500; padding:6px 12px; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.bsm:hover { border-color:var(--accent); color:var(--accent); }
+.bsm:active { transform:scale(.97); }
+.brow { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.ls { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:var(--rs); font-size:13px; }
+.ls.ld { background:rgba(0,212,255,.08); color:var(--accent); }
+.ls.er2 { background:rgba(255,92,114,.08); color:var(--err); }
+.sp { width:16px; height:16px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .6s linear infinite; flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
+#mapBox { width:100%; height:220px; border-radius:var(--rs); margin-bottom:10px; border:1px solid var(--border); z-index:1; }
+.map-hint { font-size:11px; color:var(--muted); margin-bottom:8px; font-style:italic; }
+.pg { display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:6px; width:100%; max-width:220px; }
+.pc { border:2px solid var(--border); border-radius:6px; background:var(--input); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); transition:all .15s; }
+.pc:hover { border-color:var(--muted); }
+.pc.on { border-color:var(--accent); background:rgba(0,212,255,.12); color:var(--accent); font-weight:700; }
+.sr { display:flex; align-items:center; gap:10px; margin-top:10px; }
+.sr label { font-size:12px; color:var(--muted); min-width:75px; }
+.sr input[type="range"] { flex:1; accent-color:var(--accent); height:4px; }
+.sr .v { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text2); min-width:36px; text-align:right; }
+.pills { display:flex; gap:6px; flex-wrap:wrap; }
+.pill { padding:6px 14px; border:2px solid var(--border); border-radius:20px; background:var(--input); color:var(--text2); font-family:inherit; font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; }
+.pill:hover { border-color:var(--muted); }
+.pill.on { border-color:var(--accent); background:rgba(0,212,255,.12); color:var(--accent); }
+#resSec { display:none; }
+#resSec.on { display:block; }
+#resC { width:100%; border-radius:var(--rs); display:block; }
+.abar { position:fixed; bottom:0; left:0; right:0; background:linear-gradient(to top,var(--bg) 60%,transparent); padding:20px 16px 12px; padding-bottom:12px; padding-bottom:max(12px,env(safe-area-inset-bottom)); z-index:100; }
+.abar .inn { max-width:540px; margin:0 auto; display:flex; gap:8px; }
+.bp { display:flex; align-items:center; justify-content:center; gap:8px; flex:1; padding:15px; border:none; border-radius:var(--rs); background:linear-gradient(135deg,#0099cc,var(--accent)); color:#fff; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer; transition:all .2s; box-shadow:0 4px 20px rgba(0,212,255,.25); }
+.bp:hover { box-shadow:0 6px 28px rgba(0,212,255,.4); transform:translateY(-1px); }
+.bp:active { transform:translateY(0); }
+.bp:disabled { opacity:.35; cursor:not-allowed; transform:none; box-shadow:none; }
+.bdl { background:linear-gradient(135deg,#00b87a,var(--ok)); box-shadow:0 4px 20px rgba(0,224,158,.25); }
+.bdl:hover { box-shadow:0 6px 28px rgba(0,224,158,.4); }
+.bproc { background:linear-gradient(135deg,#0099cc,var(--accent)); }
+.breproc { background:var(--input); border:1px solid var(--border); color:var(--text2); box-shadow:none; font-size:13px; }
+.breproc:hover { border-color:var(--accent); color:var(--accent); box-shadow:none; transform:none; }
+.fixed-info {
+  padding:8px 12px;
+  background:var(--input);
+  border:1px solid var(--border);
+  border-radius:8px;
+  font-size:13px;
+  font-weight:600;
+  color:var(--accent);
+  font-family:'JetBrains Mono',monospace;
+}
+.toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-100px); background:var(--card); border:1px solid var(--ok); color:var(--ok); padding:10px 20px; border-radius:var(--r); font-size:13px; font-weight:600; z-index:999; transition:transform .3s ease; box-shadow:0 8px 32px rgba(0,0,0,.4); white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+.toast.warn { border-color:var(--err); color:var(--err); }
+.foot { text-align:center; padding:16px 0; font-size:11px; color:var(--muted); }
+.mi { margin-top:10px; font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+.sl { font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:500; }
+.exif-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; margin-top:8px; }
+.exif-badge.ok { background:rgba(0,224,158,.12); color:var(--ok); }
+.exif-badge.no { background:rgba(255,92,114,.12); color:var(--err); }
+
+/* DateTime Display */
+.dt-display {
+  padding:14px 16px;
+  background:var(--input);
+  border:1px solid var(--border);
+  border-radius:var(--rs);
+  cursor:pointer;
+  transition:all .2s;
+  text-align:center;
+}
+.dt-display:hover { border-color:var(--accent); }
+.dt-val {
+  font-size:16px;
+  font-weight:700;
+  color:var(--accent);
+  letter-spacing:.3px;
+}
+.dt-edit-hint {
+  font-size:11px;
+  color:var(--muted);
+  margin-top:2px;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.65);
+  z-index:500;
+  align-items:flex-end;
+  justify-content:center;
+  
+}
+.modal-overlay.open { display:flex; }
+.modal-sheet {
+  width:100%;
+  max-width:540px;
+  background:var(--card);
+  border-radius:20px 20px 0 0;
+  border:1px solid var(--border);
+  border-bottom:none;
+  overflow:hidden;
+  animation:slideUp .3s ease;
+}
+@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+.modal-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  font-size:15px;
+  font-weight:700;
+  color:var(--text);
+}
+.modal-close {
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  border:none;
+  background:var(--input);
+  color:var(--text2);
+  font-size:16px;
+  cursor:pointer;
+}
+.modal-body { padding:20px; }
+.dt-picker-group { margin-bottom:16px; }
+.dt-pick-label {
+  display:block;
+  font-size:12px;
+  font-weight:600;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin-bottom:6px;
+}
+.dt-pick-input {
+  width:100%;
+  padding:14px 16px;
+  background:var(--input);
+  border:1px solid var(--border);
+  border-radius:var(--rs);
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  font-size:18px;
+  font-weight:600;
+  
+  outline:none;
+  transition:border-color .2s;
+}
+.dt-pick-input:focus { border-color:var(--accent); }
+.dt-pick-preview {
+  padding:12px;
+  background:rgba(0,212,255,.08);
+  border:1px solid rgba(0,212,255,.2);
+  border-radius:var(--rs);
+  font-size:15px;
+  font-weight:600;
+  color:var(--accent);
+  text-align:center;
+}
+.modal-ok {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  padding:18px;
+  border:none;
+  background:linear-gradient(135deg,#00b87a,var(--ok));
+  color:#fff;
+  font-family:inherit;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+  transition:all .2s;
+}
+.modal-ok:active { opacity:.85; }
+
+/* Resolusi hint */
+.res-hint {
+  margin-top:6px;
+  font-size:11px;
+  color:var(--muted);
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* === Android Old Version Fallbacks === */
+/* Flex gap fallback (Chrome <84) — use margins */
+@supports not (gap: 8px) {
+  .stog > * { margin: 0 4px 0 0; }
+  .stog > *:last-child { margin-right: 0; }
+  .eg > * { margin-bottom: 8px; }
+  .eg > *:last-child { margin-bottom: 0; }
+  .er > * { margin-right: 8px; }
+  .er > *:last-child { margin-right: 0; }
+  .brow > * { margin: 0 6px 6px 0; }
+  .pills > * { margin: 0 6px 6px 0; }
+  .abar .inn > * { margin: 0 4px; }
+  .abar .inn > *:first-child { margin-left: 0; }
+  .abar .inn > *:last-child { margin-right: 0; }
+  .sr > * { margin-right: 10px; }
+  .sr > *:last-child { margin-right: 0; }
+  .ct > * { margin-right: 6px; }
+}
+/* Fallback font stack if Google Fonts fail */
+body { font-family: 'DM Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>📍 Photo Watermark</h1>
+    <p>LOKASI & TANGGAL + METADATA EXIF</p>
+  </div>
+
+  <div class="card">
+    <div class="ct">📷 SUMBER FOTO</div>
+    <div class="stog">
+      <button class="sbtn on" id="btnCam" onclick="swSrc('cam')">📸 Kamera</button>
+      <button class="sbtn" id="btnUpl" onclick="swSrc('upl')">🖼️ Galeri</button>
+    </div>
+    <div id="camBox" class="on">
+      <video id="vid" autoplay playsinline muted></video>
+      <button id="capBtn" onclick="capture()"></button>
+      <button id="swCam" onclick="swCam()">🔄</button>
+    </div>
+    <div id="uplBox">
+      <div class="upz" onclick="document.getElementById('fIn').click()">
+        <div class="ic">📁</div>
+        <p>Tap untuk pilih foto</p>
+        <small>JPG, PNG — Max 20MB</small>
+      </div>
+      <input type="file" id="fIn" accept="image/*" onchange="onFile(event)">
+    </div>
+    <div id="prevSec">
+      <div class="pw">
+        <img id="prevImg" alt="">
+        <button class="prem" onclick="rmPhoto()">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">📍 LOKASI — TAP PETA UNTUK PILIH</div>
+    <div id="mapBox"></div>
+    <div class="map-hint">💡 Tap/geser peta untuk menentukan lokasi. Alamat otomatis terisi.</div>
+    <div class="eg">
+      <div class="er">
+        <span class="l">LAT</span>
+        <input type="number" step="any" id="iLat" placeholder="-7.123456">
+      </div>
+      <div class="er">
+        <span class="l">LNG</span>
+        <input type="number" step="any" id="iLng" placeholder="112.654321">
+      </div>
+      <div class="er">
+        <span class="l">Alamat</span>
+        <textarea id="iAddr" rows="2" placeholder="Alamat akan otomatis terisi saat tap peta..."></textarea>
+      </div>
+      <div class="brow">
+        <button class="bsm" onclick="gpsAuto()">📡 GPS Otomatis</button>
+        <button class="bsm" onclick="cariAlamat()">🔍 Cari Alamat</button>
+        <button class="bsm" onclick="bukaGMaps()">🗺️ Buka Google Maps</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">📅 TANGGAL & WAKTU</div>
+    <div id="dtDisplay" class="dt-display" onclick="openDtPicker()">
+      <div class="dt-val" id="dtValText">—</div>
+      <div class="dt-edit-hint">Tap untuk ubah</div>
+    </div>
+    <div class="brow" style="margin-top:8px">
+      <button class="bsm" onclick="setNow()">⏱ Sekarang</button>
+      <button class="bsm" onclick="openDtPicker()">✏️ Ubah Manual</button>
+    </div>
+  </div>
+
+  <!-- DateTime Picker Modal -->
+  <div class="modal-overlay" id="dtModal" onclick="closeDtModal(event)">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span>📅 Pilih Tanggal & Waktu</span>
+        <button class="modal-close" onclick="closeDtPicker()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="dt-picker-group">
+          <label class="dt-pick-label">Tanggal</label>
+          <input type="date" id="pickDate" class="dt-pick-input">
+        </div>
+        <div class="dt-picker-group">
+          <label class="dt-pick-label">Jam</label>
+          <input type="time" id="pickTime" step="1" class="dt-pick-input">
+        </div>
+        <div id="dtPickPreview" class="dt-pick-preview"></div>
+      </div>
+      <button class="modal-ok" onclick="confirmDtPicker()">✅ OK — Simpan Tanggal & Waktu</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">🎨 WATERMARK</div>
+    <div style="margin-bottom:14px">
+      <div class="sl">Posisi</div>
+      <div class="pg">
+        <div class="pc" data-p="tl" onclick="setP(this)">↖</div>
+        <div class="pc" data-p="tc" onclick="setP(this)">↑</div>
+        <div class="pc" data-p="tr" onclick="setP(this)">↗</div>
+        <div class="pc" data-p="ml" onclick="setP(this)">←</div>
+        <div class="pc" data-p="mc" onclick="setP(this)">⊙</div>
+        <div class="pc" data-p="mr" onclick="setP(this)">→</div>
+        <div class="pc on" data-p="bl" onclick="setP(this)">↙</div>
+        <div class="pc" data-p="bc" onclick="setP(this)">↓</div>
+        <div class="pc" data-p="br" onclick="setP(this)">↘</div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="sl">Tema Warna</div>
+      <div class="pills">
+        <button class="pill on" data-t="cyan" onclick="setT(this)">🔵 Cyan</button>
+        <button class="pill" data-t="amber" onclick="setT(this)">🟡 Amber</button>
+        <button class="pill" data-t="green" onclick="setT(this)">🟢 Hijau</button>
+        <button class="pill" data-t="red" onclick="setT(this)">🔴 Merah</button>
+        <button class="pill" data-t="white" onclick="setT(this)">⚪ Putih</button>
+        <button class="pill" data-t="dark" onclick="setT(this)">⚫ Gelap</button>
+      </div>
+    </div>
+    <div class="sr">
+      <label>Ukuran Font</label>
+      <input type="range" id="rFs" min="20" max="72" value="36" oninput="updS()">
+      <span class="v" id="vFs">36px</span>
+    </div>
+    <div class="sr">
+      <label>Opacity BG</label>
+      <input type="range" id="rOp" min="0" max="100" value="70" oninput="updS()">
+      <span class="v" id="vOp">70%</span>
+    </div>
+    <div style="margin-top:14px">
+      <div class="sl">Output</div>
+      <div class="fixed-info" id="outputInfo">Kualitas 100%</div>
+      <div class="res-hint" id="resHint"></div>
+    </div>
+  </div>
+
+  <div id="resSec">
+    <div class="card">
+      <div class="ct">✅ HASIL PREVIEW</div>
+      <canvas id="resC"></canvas>
+      <div class="mi" id="resMeta"></div>
+      <div id="exifBadge"></div>
+    </div>
+  </div>
+
+  <div class="foot">Made with ❤ @Home — © Muhammad Tajib</div>
+</div>
+
+<div class="abar">
+  <div class="inn">
+    <button class="bp bproc" id="btnProc" onclick="process()" disabled>⚙️ Proses</button>
+    <button class="bp breproc" id="btnReproc" onclick="process()" style="display:none">🔄 Proses Ulang</button>
+    <button class="bp bdl" id="btnDl" onclick="download()" style="display:none">💾 Download</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* piexifjs - embedded inline for reliability */
+/* piexifjs
+
+The MIT License (MIT)
+
+Copyright (c) 2014, 2015 hMatoba(https://github.com/hMatoba)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+(function () {
+    "use strict";
+    var that = {};
+    that.version = "1.0.4";
+
+    that.remove = function (jpeg) {
+        var b64 = false;
+        if (jpeg.slice(0, 2) == "\xff\xd8") {
+        } else if (jpeg.slice(0, 23) == "data:image/jpeg;base64," || jpeg.slice(0, 22) == "data:image/jpg;base64,") {
+            jpeg = atob(jpeg.split(",")[1]);
+            b64 = true;
+        } else {
+            throw new Error("Given data is not jpeg.");
+        }
+        
+        var segments = splitIntoSegments(jpeg);
+        var newSegments = segments.filter(function(seg){
+          return  !(seg.slice(0, 2) == "\xff\xe1" &&
+                   seg.slice(4, 10) == "Exif\x00\x00"); 
+        });
+        
+        var new_data = newSegments.join("");
+        if (b64) {
+            new_data = "data:image/jpeg;base64," + btoa(new_data);
+        }
+
+        return new_data;
+    };
+
+
+    that.insert = function (exif, jpeg) {
+        var b64 = false;
+        if (exif.slice(0, 6) != "\x45\x78\x69\x66\x00\x00") {
+            throw new Error("Given data is not exif.");
+        }
+        if (jpeg.slice(0, 2) == "\xff\xd8") {
+        } else if (jpeg.slice(0, 23) == "data:image/jpeg;base64," || jpeg.slice(0, 22) == "data:image/jpg;base64,") {
+            jpeg = atob(jpeg.split(",")[1]);
+            b64 = true;
+        } else {
+            throw new Error("Given data is not jpeg.");
+        }
+
+        var exifStr = "\xff\xe1" + pack(">H", [exif.length + 2]) + exif;
+        var segments = splitIntoSegments(jpeg);
+        var new_data = mergeSegments(segments, exifStr);
+        if (b64) {
+            new_data = "data:image/jpeg;base64," + btoa(new_data);
+        }
+
+        return new_data;
+    };
+
+
+    that.load = function (data) {
+        var input_data;
+        if (typeof (data) == "string") {
+            if (data.slice(0, 2) == "\xff\xd8") {
+                input_data = data;
+            } else if (data.slice(0, 23) == "data:image/jpeg;base64," || data.slice(0, 22) == "data:image/jpg;base64,") {
+                input_data = atob(data.split(",")[1]);
+            } else if (data.slice(0, 4) == "Exif") {
+                input_data = data.slice(6);
+            } else {
+                throw new Error("'load' gots invalid file data.");
+            }
+        } else {
+            throw new Error("'load' gots invalid type argument.");
+        }
+
+        var exifDict = {};
+        var exif_dict = {
+            "0th": {},
+            "Exif": {},
+            "GPS": {},
+            "Interop": {},
+            "1st": {},
+            "thumbnail": null
+        };
+        var exifReader = new ExifReader(input_data);
+        if (exifReader.tiftag === null) {
+            return exif_dict;
+        }
+
+        if (exifReader.tiftag.slice(0, 2) == "\x49\x49") {
+            exifReader.endian_mark = "<";
+        } else {
+            exifReader.endian_mark = ">";
+        }
+
+        var pointer = unpack(exifReader.endian_mark + "L",
+            exifReader.tiftag.slice(4, 8))[0];
+        exif_dict["0th"] = exifReader.get_ifd(pointer, "0th");
+
+        var first_ifd_pointer = exif_dict["0th"]["first_ifd_pointer"];
+        delete exif_dict["0th"]["first_ifd_pointer"];
+
+        if (34665 in exif_dict["0th"]) {
+            pointer = exif_dict["0th"][34665];
+            exif_dict["Exif"] = exifReader.get_ifd(pointer, "Exif");
+        }
+        if (34853 in exif_dict["0th"]) {
+            pointer = exif_dict["0th"][34853];
+            exif_dict["GPS"] = exifReader.get_ifd(pointer, "GPS");
+        }
+        if (40965 in exif_dict["Exif"]) {
+            pointer = exif_dict["Exif"][40965];
+            exif_dict["Interop"] = exifReader.get_ifd(pointer, "Interop");
+        }
+        if (first_ifd_pointer != "\x00\x00\x00\x00") {
+            pointer = unpack(exifReader.endian_mark + "L",
+                first_ifd_pointer)[0];
+            exif_dict["1st"] = exifReader.get_ifd(pointer, "1st");
+            if ((513 in exif_dict["1st"]) && (514 in exif_dict["1st"])) {
+                var end = exif_dict["1st"][513] + exif_dict["1st"][514];
+                var thumb = exifReader.tiftag.slice(exif_dict["1st"][513], end);
+                exif_dict["thumbnail"] = thumb;
+            }
+        }
+
+        return exif_dict;
+    };
+
+
+    that.dump = function (exif_dict_original) {
+        var TIFF_HEADER_LENGTH = 8;
+
+        var exif_dict = copy(exif_dict_original);
+        var header = "Exif\x00\x00\x4d\x4d\x00\x2a\x00\x00\x00\x08";
+        var exif_is = false;
+        var gps_is = false;
+        var interop_is = false;
+        var first_is = false;
+
+        var zeroth_ifd,
+            exif_ifd,
+            interop_ifd,
+            gps_ifd,
+            first_ifd;
+        
+        if ("0th" in exif_dict) {
+            zeroth_ifd = exif_dict["0th"];
+        } else {
+            zeroth_ifd = {};
+        }
+        
+        if ((("Exif" in exif_dict) && (Object.keys(exif_dict["Exif"]).length)) ||
+            (("Interop" in exif_dict) && (Object.keys(exif_dict["Interop"]).length))) {
+            zeroth_ifd[34665] = 1;
+            exif_is = true;
+            exif_ifd = exif_dict["Exif"];
+            if (("Interop" in exif_dict) && Object.keys(exif_dict["Interop"]).length) {
+                exif_ifd[40965] = 1;
+                interop_is = true;
+                interop_ifd = exif_dict["Interop"];
+            } else if (Object.keys(exif_ifd).indexOf(that.ExifIFD.InteroperabilityTag.toString()) > -1) {
+                delete exif_ifd[40965];
+            }
+        } else if (Object.keys(zeroth_ifd).indexOf(that.ImageIFD.ExifTag.toString()) > -1) {
+            delete zeroth_ifd[34665];
+        }
+
+        if (("GPS" in exif_dict) && (Object.keys(exif_dict["GPS"]).length)) {
+            zeroth_ifd[that.ImageIFD.GPSTag] = 1;
+            gps_is = true;
+            gps_ifd = exif_dict["GPS"];
+        } else if (Object.keys(zeroth_ifd).indexOf(that.ImageIFD.GPSTag.toString()) > -1) {
+            delete zeroth_ifd[that.ImageIFD.GPSTag];
+        }
+        
+        if (("1st" in exif_dict) &&
+            ("thumbnail" in exif_dict) &&
+            (exif_dict["thumbnail"] != null)) {
+            first_is = true;
+            exif_dict["1st"][513] = 1;
+            exif_dict["1st"][514] = 1;
+            first_ifd = exif_dict["1st"];
+        }
+        
+        var zeroth_set = _dict_to_bytes(zeroth_ifd, "0th", 0);
+        var zeroth_length = (zeroth_set[0].length + exif_is * 12 + gps_is * 12 + 4 +
+            zeroth_set[1].length);
+
+        var exif_set,
+            exif_bytes = "",
+            exif_length = 0,
+            gps_set,
+            gps_bytes = "",
+            gps_length = 0,
+            interop_set,
+            interop_bytes = "",
+            interop_length = 0,
+            first_set,
+            first_bytes = "",
+            thumbnail;
+        if (exif_is) {
+            exif_set = _dict_to_bytes(exif_ifd, "Exif", zeroth_length);
+            exif_length = exif_set[0].length + interop_is * 12 + exif_set[1].length;
+        }
+        if (gps_is) {
+            gps_set = _dict_to_bytes(gps_ifd, "GPS", zeroth_length + exif_length);
+            gps_bytes = gps_set.join("");
+            gps_length = gps_bytes.length;
+        }
+        if (interop_is) {
+            var offset = zeroth_length + exif_length + gps_length;
+            interop_set = _dict_to_bytes(interop_ifd, "Interop", offset);
+            interop_bytes = interop_set.join("");
+            interop_length = interop_bytes.length;
+        }
+        if (first_is) {
+            var offset = zeroth_length + exif_length + gps_length + interop_length;
+            first_set = _dict_to_bytes(first_ifd, "1st", offset);
+            thumbnail = _get_thumbnail(exif_dict["thumbnail"]);
+            if (thumbnail.length > 64000) {
+                throw new Error("Given thumbnail is too large. max 64kB");
+            }
+        }
+
+        var exif_pointer = "",
+            gps_pointer = "",
+            interop_pointer = "",
+            first_ifd_pointer = "\x00\x00\x00\x00";
+        if (exif_is) {
+            var pointer_value = TIFF_HEADER_LENGTH + zeroth_length;
+            var pointer_str = pack(">L", [pointer_value]);
+            var key = 34665;
+            var key_str = pack(">H", [key]);
+            var type_str = pack(">H", [TYPES["Long"]]);
+            var length_str = pack(">L", [1]);
+            exif_pointer = key_str + type_str + length_str + pointer_str;
+        }
+        if (gps_is) {
+            var pointer_value = TIFF_HEADER_LENGTH + zeroth_length + exif_length;
+            var pointer_str = pack(">L", [pointer_value]);
+            var key = 34853;
+            var key_str = pack(">H", [key]);
+            var type_str = pack(">H", [TYPES["Long"]]);
+            var length_str = pack(">L", [1]);
+            gps_pointer = key_str + type_str + length_str + pointer_str;
+        }
+        if (interop_is) {
+            var pointer_value = (TIFF_HEADER_LENGTH +
+                zeroth_length + exif_length + gps_length);
+            var pointer_str = pack(">L", [pointer_value]);
+            var key = 40965;
+            var key_str = pack(">H", [key]);
+            var type_str = pack(">H", [TYPES["Long"]]);
+            var length_str = pack(">L", [1]);
+            interop_pointer = key_str + type_str + length_str + pointer_str;
+        }
+        if (first_is) {
+            var pointer_value = (TIFF_HEADER_LENGTH + zeroth_length +
+                exif_length + gps_length + interop_length);
+            first_ifd_pointer = pack(">L", [pointer_value]);
+            var thumbnail_pointer = (pointer_value + first_set[0].length + 24 +
+                4 + first_set[1].length);
+            var thumbnail_p_bytes = ("\x02\x01\x00\x04\x00\x00\x00\x01" +
+                pack(">L", [thumbnail_pointer]));
+            var thumbnail_length_bytes = ("\x02\x02\x00\x04\x00\x00\x00\x01" +
+                pack(">L", [thumbnail.length]));
+            first_bytes = (first_set[0] + thumbnail_p_bytes +
+                thumbnail_length_bytes + "\x00\x00\x00\x00" +
+                first_set[1] + thumbnail);
+        }
+
+        var zeroth_bytes = (zeroth_set[0] + exif_pointer + gps_pointer +
+            first_ifd_pointer + zeroth_set[1]);
+        if (exif_is) {
+            exif_bytes = exif_set[0] + interop_pointer + exif_set[1];
+        }
+
+        return (header + zeroth_bytes + exif_bytes + gps_bytes +
+            interop_bytes + first_bytes);
+    };
+
+
+    function copy(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    }
+
+
+    function _get_thumbnail(jpeg) {
+        var segments = splitIntoSegments(jpeg);
+        while (("\xff\xe0" <= segments[1].slice(0, 2)) && (segments[1].slice(0, 2) <= "\xff\xef")) {
+            segments = [segments[0]].concat(segments.slice(2));
+        }
+        return segments.join("");
+    }
+
+
+    function _pack_byte(array) {
+        return pack(">" + nStr("B", array.length), array);
+    }
+
+
+    function _pack_short(array) {
+        return pack(">" + nStr("H", array.length), array);
+    }
+
+
+    function _pack_long(array) {
+        return pack(">" + nStr("L", array.length), array);
+    }
+
+
+    function _value_to_bytes(raw_value, value_type, offset) {
+        var four_bytes_over = "";
+        var value_str = "";
+        var length,
+            new_value,
+            num,
+            den;
+
+        if (value_type == "Byte") {
+            length = raw_value.length;
+            if (length <= 4) {
+                value_str = (_pack_byte(raw_value) +
+                    nStr("\x00", 4 - length));
+            } else {
+                value_str = pack(">L", [offset]);
+                four_bytes_over = _pack_byte(raw_value);
+            }
+        } else if (value_type == "Short") {
+            length = raw_value.length;
+            if (length <= 2) {
+                value_str = (_pack_short(raw_value) +
+                    nStr("\x00\x00", 2 - length));
+            } else {
+                value_str = pack(">L", [offset]);
+                four_bytes_over = _pack_short(raw_value);
+            }
+        } else if (value_type == "Long") {
+            length = raw_value.length;
+            if (length <= 1) {
+                value_str = _pack_long(raw_value);
+            } else {
+                value_str = pack(">L", [offset]);
+                four_bytes_over = _pack_long(raw_value);
+            }
+        } else if (value_type == "Ascii") {
+            new_value = raw_value + "\x00";
+            length = new_value.length;
+            if (length > 4) {
+                value_str = pack(">L", [offset]);
+                four_bytes_over = new_value;
+            } else {
+                value_str = new_value + nStr("\x00", 4 - length);
+            }
+        } else if (value_type == "Rational") {
+            if (typeof (raw_value[0]) == "number") {
+                length = 1;
+                num = raw_value[0];
+                den = raw_value[1];
+                new_value = pack(">L", [num]) + pack(">L", [den]);
+            } else {
+                length = raw_value.length;
+                new_value = "";
+                for (var n = 0; n < length; n++) {
+                    num = raw_value[n][0];
+                    den = raw_value[n][1];
+                    new_value += (pack(">L", [num]) +
+                        pack(">L", [den]));
+                }
+            }
+            value_str = pack(">L", [offset]);
+            four_bytes_over = new_value;
+        } else if (value_type == "SRational") {
+            if (typeof (raw_value[0]) == "number") {
+                length = 1;
+                num = raw_value[0];
+                den = raw_value[1];
+                new_value = pack(">l", [num]) + pack(">l", [den]);
+            } else {
+                length = raw_value.length;
+                new_value = "";
+                for (var n = 0; n < length; n++) {
+                    num = raw_value[n][0];
+                    den = raw_value[n][1];
+                    new_value += (pack(">l", [num]) +
+                        pack(">l", [den]));
+                }
+            }
+            value_str = pack(">L", [offset]);
+            four_bytes_over = new_value;
+        } else if (value_type == "Undefined") {
+            length = raw_value.length;
+            if (length > 4) {
+                value_str = pack(">L", [offset]);
+                four_bytes_over = raw_value;
+            } else {
+                value_str = raw_value + nStr("\x00", 4 - length);
+            }
+        }
+
+        var length_str = pack(">L", [length]);
+
+        return [length_str, value_str, four_bytes_over];
+    }
+
+    function _dict_to_bytes(ifd_dict, ifd, ifd_offset) {
+        var TIFF_HEADER_LENGTH = 8;
+        var tag_count = Object.keys(ifd_dict).length;
+        var entry_header = pack(">H", [tag_count]);
+        var entries_length;
+        if (["0th", "1st"].indexOf(ifd) > -1) {
+            entries_length = 2 + tag_count * 12 + 4;
+        } else {
+            entries_length = 2 + tag_count * 12;
+        }
+        var entries = "";
+        var values = "";
+        var key;
+
+        for (var key in ifd_dict) {
+            if (typeof (key) == "string") {
+                key = parseInt(key);
+            }
+            if ((ifd == "0th") && ([34665, 34853].indexOf(key) > -1)) {
+                continue;
+            } else if ((ifd == "Exif") && (key == 40965)) {
+                continue;
+            } else if ((ifd == "1st") && ([513, 514].indexOf(key) > -1)) {
+                continue;
+            }
+
+            var raw_value = ifd_dict[key];
+            var key_str = pack(">H", [key]);
+            var value_type = TAGS[ifd][key]["type"];
+            var type_str = pack(">H", [TYPES[value_type]]);
+
+            if (typeof (raw_value) == "number") {
+                raw_value = [raw_value];
+            }
+            var offset = TIFF_HEADER_LENGTH + entries_length + ifd_offset + values.length;
+            var b = _value_to_bytes(raw_value, value_type, offset);
+            var length_str = b[0];
+            var value_str = b[1];
+            var four_bytes_over = b[2];
+
+            entries += key_str + type_str + length_str + value_str;
+            values += four_bytes_over;
+        }
+
+        return [entry_header + entries, values];
+    }
+
+
+
+    function ExifReader(data) {
+        var segments,
+            app1;
+        if (data.slice(0, 2) == "\xff\xd8") { // JPEG
+            segments = splitIntoSegments(data);
+            app1 = getExifSeg(segments);
+            if (app1) {
+                this.tiftag = app1.slice(10);
+            } else {
+                this.tiftag = null;
+            }
+        } else if (["\x49\x49", "\x4d\x4d"].indexOf(data.slice(0, 2)) > -1) { // TIFF
+            this.tiftag = data;
+        } else if (data.slice(0, 4) == "Exif") { // Exif
+            this.tiftag = data.slice(6);
+        } else {
+            throw new Error("Given file is neither JPEG nor TIFF.");
+        }
+    }
+
+    ExifReader.prototype = {
+        get_ifd: function (pointer, ifd_name) {
+            var ifd_dict = {};
+            var tag_count = unpack(this.endian_mark + "H",
+                this.tiftag.slice(pointer, pointer + 2))[0];
+            var offset = pointer + 2;
+            var t;
+            if (["0th", "1st"].indexOf(ifd_name) > -1) {
+                t = "Image";
+            } else {
+                t = ifd_name;
+            }
+
+            for (var x = 0; x < tag_count; x++) {
+                pointer = offset + 12 * x;
+                var tag = unpack(this.endian_mark + "H",
+                    this.tiftag.slice(pointer, pointer + 2))[0];
+                var value_type = unpack(this.endian_mark + "H",
+                    this.tiftag.slice(pointer + 2, pointer + 4))[0];
+                var value_num = unpack(this.endian_mark + "L",
+                    this.tiftag.slice(pointer + 4, pointer + 8))[0];
+                var value = this.tiftag.slice(pointer + 8, pointer + 12);
+
+                var v_set = [value_type, value_num, value];
+                if (tag in TAGS[t]) {
+                    ifd_dict[tag] = this.convert_value(v_set);
+                }
+            }
+
+            if (ifd_name == "0th") {
+                pointer = offset + 12 * tag_count;
+                ifd_dict["first_ifd_pointer"] = this.tiftag.slice(pointer, pointer + 4);
+            }
+
+            return ifd_dict;
+        },
+
+        convert_value: function (val) {
+            var data = null;
+            var t = val[0];
+            var length = val[1];
+            var value = val[2];
+            var pointer;
+
+            if (t == 1) { // BYTE
+                if (length > 4) {
+                    pointer = unpack(this.endian_mark + "L", value)[0];
+                    data = unpack(this.endian_mark + nStr("B", length),
+                        this.tiftag.slice(pointer, pointer + length));
+                } else {
+                    data = unpack(this.endian_mark + nStr("B", length), value.slice(0, length));
+                }
+            } else if (t == 2) { // ASCII
+                if (length > 4) {
+                    pointer = unpack(this.endian_mark + "L", value)[0];
+                    data = this.tiftag.slice(pointer, pointer + length - 1);
+                } else {
+                    data = value.slice(0, length - 1);
+                }
+            } else if (t == 3) { // SHORT
+                if (length > 2) {
+                    pointer = unpack(this.endian_mark + "L", value)[0];
+                    data = unpack(this.endian_mark + nStr("H", length),
+                        this.tiftag.slice(pointer, pointer + length * 2));
+                } else {
+                    data = unpack(this.endian_mark + nStr("H", length),
+                        value.slice(0, length * 2));
+                }
+            } else if (t == 4) { // LONG
+                if (length > 1) {
+                    pointer = unpack(this.endian_mark + "L", value)[0];
+                    data = unpack(this.endian_mark + nStr("L", length),
+                        this.tiftag.slice(pointer, pointer + length * 4));
+                } else {
+                    data = unpack(this.endian_mark + nStr("L", length),
+                        value);
+                }
+            } else if (t == 5) { // RATIONAL
+                pointer = unpack(this.endian_mark + "L", value)[0];
+                if (length > 1) {
+                    data = [];
+                    for (var x = 0; x < length; x++) {
+                        data.push([unpack(this.endian_mark + "L",
+                                this.tiftag.slice(pointer + x * 8, pointer + 4 + x * 8))[0],
+                                   unpack(this.endian_mark + "L",
+                                this.tiftag.slice(pointer + 4 + x * 8, pointer + 8 + x * 8))[0]
+                                   ]);
+                    }
+                } else {
+                    data = [unpack(this.endian_mark + "L",
+                            this.tiftag.slice(pointer, pointer + 4))[0],
+                            unpack(this.endian_mark + "L",
+                            this.tiftag.slice(pointer + 4, pointer + 8))[0]
+                            ];
+                }
+            } else if (t == 7) { // UNDEFINED BYTES
+                if (length > 4) {
+                    pointer = unpack(this.endian_mark + "L", value)[0];
+                    data = this.tiftag.slice(pointer, pointer + length);
+                } else {
+                    data = value.slice(0, length);
+                }
+            } else if (t == 9) { // SLONG
+                if (length > 1) {
+                    pointer = unpack(this.endian_mark + "L", value)[0];
+                    data = unpack(this.endian_mark + nStr("l", length),
+                        this.tiftag.slice(pointer, pointer + length * 4));
+                } else {
+                    data = unpack(this.endian_mark + nStr("l", length),
+                        value);
+                }
+            } else if (t == 10) { // SRATIONAL
+                pointer = unpack(this.endian_mark + "L", value)[0];
+                if (length > 1) {
+                    data = [];
+                    for (var x = 0; x < length; x++) {
+                        data.push([unpack(this.endian_mark + "l",
+                                this.tiftag.slice(pointer + x * 8, pointer + 4 + x * 8))[0],
+                                   unpack(this.endian_mark + "l",
+                                this.tiftag.slice(pointer + 4 + x * 8, pointer + 8 + x * 8))[0]
+                                  ]);
+                    }
+                } else {
+                    data = [unpack(this.endian_mark + "l",
+                            this.tiftag.slice(pointer, pointer + 4))[0],
+                            unpack(this.endian_mark + "l",
+                            this.tiftag.slice(pointer + 4, pointer + 8))[0]
+                           ];
+                }
+            } else {
+                throw new Error("Exif might be wrong. Got incorrect value " +
+                    "type to decode. type:" + t);
+            }
+
+            if ((data instanceof Array) && (data.length == 1)) {
+                return data[0];
+            } else {
+                return data;
+            }
+        },
+    };
+
+
+    if (typeof window !== "undefined" && typeof window.btoa === "function") {
+        var btoa = window.btoa;
+    }
+    if (typeof btoa === "undefined") {
+        var btoa = function (input) {        var output = "";
+            var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+            var i = 0;
+            var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+
+            while (i < input.length) {
+
+                chr1 = input.charCodeAt(i++);
+                chr2 = input.charCodeAt(i++);
+                chr3 = input.charCodeAt(i++);
+
+                enc1 = chr1 >> 2;
+                enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+                enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+                enc4 = chr3 & 63;
+
+                if (isNaN(chr2)) {
+                    enc3 = enc4 = 64;
+                } else if (isNaN(chr3)) {
+                    enc4 = 64;
+                }
+
+                output = output +
+                keyStr.charAt(enc1) + keyStr.charAt(enc2) +
+                keyStr.charAt(enc3) + keyStr.charAt(enc4);
+
+            }
+
+            return output;
+        };
+    }
+    
+    
+    if (typeof window !== "undefined" && typeof window.atob === "function") {
+        var atob = window.atob;
+    }
+    if (typeof atob === "undefined") {
+        var atob = function (input) {
+            var output = "";
+            var chr1, chr2, chr3;
+            var enc1, enc2, enc3, enc4;
+            var i = 0;
+            var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+
+            input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+            while (i < input.length) {
+
+                enc1 = keyStr.indexOf(input.charAt(i++));
+                enc2 = keyStr.indexOf(input.charAt(i++));
+                enc3 = keyStr.indexOf(input.charAt(i++));
+                enc4 = keyStr.indexOf(input.charAt(i++));
+
+                chr1 = (enc1 << 2) | (enc2 >> 4);
+                chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+                chr3 = ((enc3 & 3) << 6) | enc4;
+
+                output = output + String.fromCharCode(chr1);
+
+                if (enc3 != 64) {
+                    output = output + String.fromCharCode(chr2);
+                }
+                if (enc4 != 64) {
+                    output = output + String.fromCharCode(chr3);
+                }
+
+            }
+
+            return output;
+        };
+    }
+
+
+    function getImageSize(imageArray) {
+        var segments = slice2Segments(imageArray);
+        var seg,
+            width,
+            height,
+            SOF = [192, 193, 194, 195, 197, 198, 199, 201, 202, 203, 205, 206, 207];
+
+        for (var x = 0; x < segments.length; x++) {
+            seg = segments[x];
+            if (SOF.indexOf(seg[1]) >= 0) {
+                height = seg[5] * 256 + seg[6];
+                width = seg[7] * 256 + seg[8];
+                break;
+            }
+        }
+        return [width, height];
+    }
+
+
+    function pack(mark, array) {
+        if (!(array instanceof Array)) {
+            throw new Error("'pack' error. Got invalid type argument.");
+        }
+        if ((mark.length - 1) != array.length) {
+            throw new Error("'pack' error. " + (mark.length - 1) + " marks, " + array.length + " elements.");
+        }
+
+        var littleEndian;
+        if (mark[0] == "<") {
+            littleEndian = true;
+        } else if (mark[0] == ">") {
+            littleEndian = false;
+        } else {
+            throw new Error("");
+        }
+        var packed = "";
+        var p = 1;
+        var val = null;
+        var c = null;
+        var valStr = null;
+
+        while (c = mark[p]) {
+            if (c.toLowerCase() == "b") {
+                val = array[p - 1];
+                if ((c == "b") && (val < 0)) {
+                    val += 0x100;
+                }
+                if ((val > 0xff) || (val < 0)) {
+                    throw new Error("'pack' error.");
+                } else {
+                    valStr = String.fromCharCode(val);
+                }
+            } else if (c == "H") {
+                val = array[p - 1];
+                if ((val > 0xffff) || (val < 0)) {
+                    throw new Error("'pack' error.");
+                } else {
+                    valStr = String.fromCharCode(Math.floor((val % 0x10000) / 0x100)) +
+                        String.fromCharCode(val % 0x100);
+                    if (littleEndian) {
+                        valStr = valStr.split("").reverse().join("");
+                    }
+                }
+            } else if (c.toLowerCase() == "l") {
+                val = array[p - 1];
+                if ((c == "l") && (val < 0)) {
+                    val += 0x100000000;
+                }
+                if ((val > 0xffffffff) || (val < 0)) {
+                    throw new Error("'pack' error.");
+                } else {
+                    valStr = String.fromCharCode(Math.floor(val / 0x1000000)) +
+                        String.fromCharCode(Math.floor((val % 0x1000000) / 0x10000)) +
+                        String.fromCharCode(Math.floor((val % 0x10000) / 0x100)) +
+                        String.fromCharCode(val % 0x100);
+                    if (littleEndian) {
+                        valStr = valStr.split("").reverse().join("");
+                    }
+                }
+            } else {
+                throw new Error("'pack' error.");
+            }
+
+            packed += valStr;
+            p += 1;
+        }
+
+        return packed;
+    }
+
+    function unpack(mark, str) {
+        if (typeof (str) != "string") {
+            throw new Error("'unpack' error. Got invalid type argument.");
+        }
+        var l = 0;
+        for (var markPointer = 1; markPointer < mark.length; markPointer++) {
+            if (mark[markPointer].toLowerCase() == "b") {
+                l += 1;
+            } else if (mark[markPointer].toLowerCase() == "h") {
+                l += 2;
+            } else if (mark[markPointer].toLowerCase() == "l") {
+                l += 4;
+            } else {
+                throw new Error("'unpack' error. Got invalid mark.");
+            }
+        }
+
+        if (l != str.length) {
+            throw new Error("'unpack' error. Mismatch between symbol and string length. " + l + ":" + str.length);
+        }
+
+        var littleEndian;
+        if (mark[0] == "<") {
+            littleEndian = true;
+        } else if (mark[0] == ">") {
+            littleEndian = false;
+        } else {
+            throw new Error("'unpack' error.");
+        }
+        var unpacked = [];
+        var strPointer = 0;
+        var p = 1;
+        var val = null;
+        var c = null;
+        var length = null;
+        var sliced = "";
+
+        while (c = mark[p]) {
+            if (c.toLowerCase() == "b") {
+                length = 1;
+                sliced = str.slice(strPointer, strPointer + length);
+                val = sliced.charCodeAt(0);
+                if ((c == "b") && (val >= 0x80)) {
+                    val -= 0x100;
+                }
+            } else if (c == "H") {
+                length = 2;
+                sliced = str.slice(strPointer, strPointer + length);
+                if (littleEndian) {
+                    sliced = sliced.split("").reverse().join("");
+                }
+                val = sliced.charCodeAt(0) * 0x100 +
+                    sliced.charCodeAt(1);
+            } else if (c.toLowerCase() == "l") {
+                length = 4;
+                sliced = str.slice(strPointer, strPointer + length);
+                if (littleEndian) {
+                    sliced = sliced.split("").reverse().join("");
+                }
+                val = sliced.charCodeAt(0) * 0x1000000 +
+                    sliced.charCodeAt(1) * 0x10000 +
+                    sliced.charCodeAt(2) * 0x100 +
+                    sliced.charCodeAt(3);
+                if ((c == "l") && (val >= 0x80000000)) {
+                    val -= 0x100000000;
+                }
+            } else {
+                throw new Error("'unpack' error. " + c);
+            }
+
+            unpacked.push(val);
+            strPointer += length;
+            p += 1;
+        }
+
+        return unpacked;
+    }
+
+    function nStr(ch, num) {
+        var str = "";
+        for (var i = 0; i < num; i++) {
+            str += ch;
+        }
+        return str;
+    }
+
+    function splitIntoSegments(data) {
+        if (data.slice(0, 2) != "\xff\xd8") {
+            throw new Error("Given data isn't JPEG.");
+        }
+
+        var head = 2;
+        var segments = ["\xff\xd8"];
+        while (true) {
+            if (data.slice(head, head + 2) == "\xff\xda") {
+                segments.push(data.slice(head));
+                break;
+            } else {
+                var length = unpack(">H", data.slice(head + 2, head + 4))[0];
+                var endPoint = head + length + 2;
+                segments.push(data.slice(head, endPoint));
+                head = endPoint;
+            }
+
+            if (head >= data.length) {
+                throw new Error("Wrong JPEG data.");
+            }
+        }
+        return segments;
+    }
+
+
+    function getExifSeg(segments) {
+        var seg;
+        for (var i = 0; i < segments.length; i++) {
+            seg = segments[i];
+            if (seg.slice(0, 2) == "\xff\xe1" &&
+                   seg.slice(4, 10) == "Exif\x00\x00") {
+                return seg;
+            }
+        }
+        return null;
+    }
+
+
+    function mergeSegments(segments, exif) {
+        var hasExifSegment = false;
+        var additionalAPP1ExifSegments = [];
+
+        segments.forEach(function(segment, i) {
+            // Replace first occurence of APP1:Exif segment
+            if (segment.slice(0, 2) == "\xff\xe1" &&
+                segment.slice(4, 10) == "Exif\x00\x00"
+            ) {
+                if (!hasExifSegment) {
+                    segments[i] = exif;
+                    hasExifSegment = true;
+                } else {
+                    additionalAPP1ExifSegments.unshift(i);
+                }
+            }
+        });
+
+        // Remove additional occurences of APP1:Exif segment
+        additionalAPP1ExifSegments.forEach(function(segmentIndex) {
+            segments.splice(segmentIndex, 1);
+        });
+
+        if (!hasExifSegment && exif) {
+            segments = [segments[0], exif].concat(segments.slice(1));
+        }
+
+        return segments.join("");
+    }
+
+
+    function toHex(str) {
+        var hexStr = "";
+        for (var i = 0; i < str.length; i++) {
+            var h = str.charCodeAt(i);
+            var hex = ((h < 10) ? "0" : "") + h.toString(16);
+            hexStr += hex + " ";
+        }
+        return hexStr;
+    }
+
+
+    var TYPES = {
+        "Byte": 1,
+        "Ascii": 2,
+        "Short": 3,
+        "Long": 4,
+        "Rational": 5,
+        "Undefined": 7,
+        "SLong": 9,
+        "SRational": 10
+    };
+
+
+    var TAGS = {
+        'Image': {
+            11: {
+                'name': 'ProcessingSoftware',
+                'type': 'Ascii'
+            },
+            254: {
+                'name': 'NewSubfileType',
+                'type': 'Long'
+            },
+            255: {
+                'name': 'SubfileType',
+                'type': 'Short'
+            },
+            256: {
+                'name': 'ImageWidth',
+                'type': 'Long'
+            },
+            257: {
+                'name': 'ImageLength',
+                'type': 'Long'
+            },
+            258: {
+                'name': 'BitsPerSample',
+                'type': 'Short'
+            },
+            259: {
+                'name': 'Compression',
+                'type': 'Short'
+            },
+            262: {
+                'name': 'PhotometricInterpretation',
+                'type': 'Short'
+            },
+            263: {
+                'name': 'Threshholding',
+                'type': 'Short'
+            },
+            264: {
+                'name': 'CellWidth',
+                'type': 'Short'
+            },
+            265: {
+                'name': 'CellLength',
+                'type': 'Short'
+            },
+            266: {
+                'name': 'FillOrder',
+                'type': 'Short'
+            },
+            269: {
+                'name': 'DocumentName',
+                'type': 'Ascii'
+            },
+            270: {
+                'name': 'ImageDescription',
+                'type': 'Ascii'
+            },
+            271: {
+                'name': 'Make',
+                'type': 'Ascii'
+            },
+            272: {
+                'name': 'Model',
+                'type': 'Ascii'
+            },
+            273: {
+                'name': 'StripOffsets',
+                'type': 'Long'
+            },
+            274: {
+                'name': 'Orientation',
+                'type': 'Short'
+            },
+            277: {
+                'name': 'SamplesPerPixel',
+                'type': 'Short'
+            },
+            278: {
+                'name': 'RowsPerStrip',
+                'type': 'Long'
+            },
+            279: {
+                'name': 'StripByteCounts',
+                'type': 'Long'
+            },
+            282: {
+                'name': 'XResolution',
+                'type': 'Rational'
+            },
+            283: {
+                'name': 'YResolution',
+                'type': 'Rational'
+            },
+            284: {
+                'name': 'PlanarConfiguration',
+                'type': 'Short'
+            },
+            290: {
+                'name': 'GrayResponseUnit',
+                'type': 'Short'
+            },
+            291: {
+                'name': 'GrayResponseCurve',
+                'type': 'Short'
+            },
+            292: {
+                'name': 'T4Options',
+                'type': 'Long'
+            },
+            293: {
+                'name': 'T6Options',
+                'type': 'Long'
+            },
+            296: {
+                'name': 'ResolutionUnit',
+                'type': 'Short'
+            },
+            301: {
+                'name': 'TransferFunction',
+                'type': 'Short'
+            },
+            305: {
+                'name': 'Software',
+                'type': 'Ascii'
+            },
+            306: {
+                'name': 'DateTime',
+                'type': 'Ascii'
+            },
+            315: {
+                'name': 'Artist',
+                'type': 'Ascii'
+            },
+            316: {
+                'name': 'HostComputer',
+                'type': 'Ascii'
+            },
+            317: {
+                'name': 'Predictor',
+                'type': 'Short'
+            },
+            318: {
+                'name': 'WhitePoint',
+                'type': 'Rational'
+            },
+            319: {
+                'name': 'PrimaryChromaticities',
+                'type': 'Rational'
+            },
+            320: {
+                'name': 'ColorMap',
+                'type': 'Short'
+            },
+            321: {
+                'name': 'HalftoneHints',
+                'type': 'Short'
+            },
+            322: {
+                'name': 'TileWidth',
+                'type': 'Short'
+            },
+            323: {
+                'name': 'TileLength',
+                'type': 'Short'
+            },
+            324: {
+                'name': 'TileOffsets',
+                'type': 'Short'
+            },
+            325: {
+                'name': 'TileByteCounts',
+                'type': 'Short'
+            },
+            330: {
+                'name': 'SubIFDs',
+                'type': 'Long'
+            },
+            332: {
+                'name': 'InkSet',
+                'type': 'Short'
+            },
+            333: {
+                'name': 'InkNames',
+                'type': 'Ascii'
+            },
+            334: {
+                'name': 'NumberOfInks',
+                'type': 'Short'
+            },
+            336: {
+                'name': 'DotRange',
+                'type': 'Byte'
+            },
+            337: {
+                'name': 'TargetPrinter',
+                'type': 'Ascii'
+            },
+            338: {
+                'name': 'ExtraSamples',
+                'type': 'Short'
+            },
+            339: {
+                'name': 'SampleFormat',
+                'type': 'Short'
+            },
+            340: {
+                'name': 'SMinSampleValue',
+                'type': 'Short'
+            },
+            341: {
+                'name': 'SMaxSampleValue',
+                'type': 'Short'
+            },
+            342: {
+                'name': 'TransferRange',
+                'type': 'Short'
+            },
+            343: {
+                'name': 'ClipPath',
+                'type': 'Byte'
+            },
+            344: {
+                'name': 'XClipPathUnits',
+                'type': 'Long'
+            },
+            345: {
+                'name': 'YClipPathUnits',
+                'type': 'Long'
+            },
+            346: {
+                'name': 'Indexed',
+                'type': 'Short'
+            },
+            347: {
+                'name': 'JPEGTables',
+                'type': 'Undefined'
+            },
+            351: {
+                'name': 'OPIProxy',
+                'type': 'Short'
+            },
+            512: {
+                'name': 'JPEGProc',
+                'type': 'Long'
+            },
+            513: {
+                'name': 'JPEGInterchangeFormat',
+                'type': 'Long'
+            },
+            514: {
+                'name': 'JPEGInterchangeFormatLength',
+                'type': 'Long'
+            },
+            515: {
+                'name': 'JPEGRestartInterval',
+                'type': 'Short'
+            },
+            517: {
+                'name': 'JPEGLosslessPredictors',
+                'type': 'Short'
+            },
+            518: {
+                'name': 'JPEGPointTransforms',
+                'type': 'Short'
+            },
+            519: {
+                'name': 'JPEGQTables',
+                'type': 'Long'
+            },
+            520: {
+                'name': 'JPEGDCTables',
+                'type': 'Long'
+            },
+            521: {
+                'name': 'JPEGACTables',
+                'type': 'Long'
+            },
+            529: {
+                'name': 'YCbCrCoefficients',
+                'type': 'Rational'
+            },
+            530: {
+                'name': 'YCbCrSubSampling',
+                'type': 'Short'
+            },
+            531: {
+                'name': 'YCbCrPositioning',
+                'type': 'Short'
+            },
+            532: {
+                'name': 'ReferenceBlackWhite',
+                'type': 'Rational'
+            },
+            700: {
+                'name': 'XMLPacket',
+                'type': 'Byte'
+            },
+            18246: {
+                'name': 'Rating',
+                'type': 'Short'
+            },
+            18249: {
+                'name': 'RatingPercent',
+                'type': 'Short'
+            },
+            32781: {
+                'name': 'ImageID',
+                'type': 'Ascii'
+            },
+            33421: {
+                'name': 'CFARepeatPatternDim',
+                'type': 'Short'
+            },
+            33422: {
+                'name': 'CFAPattern',
+                'type': 'Byte'
+            },
+            33423: {
+                'name': 'BatteryLevel',
+                'type': 'Rational'
+            },
+            33432: {
+                'name': 'Copyright',
+                'type': 'Ascii'
+            },
+            33434: {
+                'name': 'ExposureTime',
+                'type': 'Rational'
+            },
+            34377: {
+                'name': 'ImageResources',
+                'type': 'Byte'
+            },
+            34665: {
+                'name': 'ExifTag',
+                'type': 'Long'
+            },
+            34675: {
+                'name': 'InterColorProfile',
+                'type': 'Undefined'
+            },
+            34853: {
+                'name': 'GPSTag',
+                'type': 'Long'
+            },
+            34857: {
+                'name': 'Interlace',
+                'type': 'Short'
+            },
+            34858: {
+                'name': 'TimeZoneOffset',
+                'type': 'Long'
+            },
+            34859: {
+                'name': 'SelfTimerMode',
+                'type': 'Short'
+            },
+            37387: {
+                'name': 'FlashEnergy',
+                'type': 'Rational'
+            },
+            37388: {
+                'name': 'SpatialFrequencyResponse',
+                'type': 'Undefined'
+            },
+            37389: {
+                'name': 'Noise',
+                'type': 'Undefined'
+            },
+            37390: {
+                'name': 'FocalPlaneXResolution',
+                'type': 'Rational'
+            },
+            37391: {
+                'name': 'FocalPlaneYResolution',
+                'type': 'Rational'
+            },
+            37392: {
+                'name': 'FocalPlaneResolutionUnit',
+                'type': 'Short'
+            },
+            37393: {
+                'name': 'ImageNumber',
+                'type': 'Long'
+            },
+            37394: {
+                'name': 'SecurityClassification',
+                'type': 'Ascii'
+            },
+            37395: {
+                'name': 'ImageHistory',
+                'type': 'Ascii'
+            },
+            37397: {
+                'name': 'ExposureIndex',
+                'type': 'Rational'
+            },
+            37398: {
+                'name': 'TIFFEPStandardID',
+                'type': 'Byte'
+            },
+            37399: {
+                'name': 'SensingMethod',
+                'type': 'Short'
+            },
+            40091: {
+                'name': 'XPTitle',
+                'type': 'Byte'
+            },
+            40092: {
+                'name': 'XPComment',
+                'type': 'Byte'
+            },
+            40093: {
+                'name': 'XPAuthor',
+                'type': 'Byte'
+            },
+            40094: {
+                'name': 'XPKeywords',
+                'type': 'Byte'
+            },
+            40095: {
+                'name': 'XPSubject',
+                'type': 'Byte'
+            },
+            50341: {
+                'name': 'PrintImageMatching',
+                'type': 'Undefined'
+            },
+            50706: {
+                'name': 'DNGVersion',
+                'type': 'Byte'
+            },
+            50707: {
+                'name': 'DNGBackwardVersion',
+                'type': 'Byte'
+            },
+            50708: {
+                'name': 'UniqueCameraModel',
+                'type': 'Ascii'
+            },
+            50709: {
+                'name': 'LocalizedCameraModel',
+                'type': 'Byte'
+            },
+            50710: {
+                'name': 'CFAPlaneColor',
+                'type': 'Byte'
+            },
+            50711: {
+                'name': 'CFALayout',
+                'type': 'Short'
+            },
+            50712: {
+                'name': 'LinearizationTable',
+                'type': 'Short'
+            },
+            50713: {
+                'name': 'BlackLevelRepeatDim',
+                'type': 'Short'
+            },
+            50714: {
+                'name': 'BlackLevel',
+                'type': 'Rational'
+            },
+            50715: {
+                'name': 'BlackLevelDeltaH',
+                'type': 'SRational'
+            },
+            50716: {
+                'name': 'BlackLevelDeltaV',
+                'type': 'SRational'
+            },
+            50717: {
+                'name': 'WhiteLevel',
+                'type': 'Short'
+            },
+            50718: {
+                'name': 'DefaultScale',
+                'type': 'Rational'
+            },
+            50719: {
+                'name': 'DefaultCropOrigin',
+                'type': 'Short'
+            },
+            50720: {
+                'name': 'DefaultCropSize',
+                'type': 'Short'
+            },
+            50721: {
+                'name': 'ColorMatrix1',
+                'type': 'SRational'
+            },
+            50722: {
+                'name': 'ColorMatrix2',
+                'type': 'SRational'
+            },
+            50723: {
+                'name': 'CameraCalibration1',
+                'type': 'SRational'
+            },
+            50724: {
+                'name': 'CameraCalibration2',
+                'type': 'SRational'
+            },
+            50725: {
+                'name': 'ReductionMatrix1',
+                'type': 'SRational'
+            },
+            50726: {
+                'name': 'ReductionMatrix2',
+                'type': 'SRational'
+            },
+            50727: {
+                'name': 'AnalogBalance',
+                'type': 'Rational'
+            },
+            50728: {
+                'name': 'AsShotNeutral',
+                'type': 'Short'
+            },
+            50729: {
+                'name': 'AsShotWhiteXY',
+                'type': 'Rational'
+            },
+            50730: {
+                'name': 'BaselineExposure',
+                'type': 'SRational'
+            },
+            50731: {
+                'name': 'BaselineNoise',
+                'type': 'Rational'
+            },
+            50732: {
+                'name': 'BaselineSharpness',
+                'type': 'Rational'
+            },
+            50733: {
+                'name': 'BayerGreenSplit',
+                'type': 'Long'
+            },
+            50734: {
+                'name': 'LinearResponseLimit',
+                'type': 'Rational'
+            },
+            50735: {
+                'name': 'CameraSerialNumber',
+                'type': 'Ascii'
+            },
+            50736: {
+                'name': 'LensInfo',
+                'type': 'Rational'
+            },
+            50737: {
+                'name': 'ChromaBlurRadius',
+                'type': 'Rational'
+            },
+            50738: {
+                'name': 'AntiAliasStrength',
+                'type': 'Rational'
+            },
+            50739: {
+                'name': 'ShadowScale',
+                'type': 'SRational'
+            },
+            50740: {
+                'name': 'DNGPrivateData',
+                'type': 'Byte'
+            },
+            50741: {
+                'name': 'MakerNoteSafety',
+                'type': 'Short'
+            },
+            50778: {
+                'name': 'CalibrationIlluminant1',
+                'type': 'Short'
+            },
+            50779: {
+                'name': 'CalibrationIlluminant2',
+                'type': 'Short'
+            },
+            50780: {
+                'name': 'BestQualityScale',
+                'type': 'Rational'
+            },
+            50781: {
+                'name': 'RawDataUniqueID',
+                'type': 'Byte'
+            },
+            50827: {
+                'name': 'OriginalRawFileName',
+                'type': 'Byte'
+            },
+            50828: {
+                'name': 'OriginalRawFileData',
+                'type': 'Undefined'
+            },
+            50829: {
+                'name': 'ActiveArea',
+                'type': 'Short'
+            },
+            50830: {
+                'name': 'MaskedAreas',
+                'type': 'Short'
+            },
+            50831: {
+                'name': 'AsShotICCProfile',
+                'type': 'Undefined'
+            },
+            50832: {
+                'name': 'AsShotPreProfileMatrix',
+                'type': 'SRational'
+            },
+            50833: {
+                'name': 'CurrentICCProfile',
+                'type': 'Undefined'
+            },
+            50834: {
+                'name': 'CurrentPreProfileMatrix',
+                'type': 'SRational'
+            },
+            50879: {
+                'name': 'ColorimetricReference',
+                'type': 'Short'
+            },
+            50931: {
+                'name': 'CameraCalibrationSignature',
+                'type': 'Byte'
+            },
+            50932: {
+                'name': 'ProfileCalibrationSignature',
+                'type': 'Byte'
+            },
+            50934: {
+                'name': 'AsShotProfileName',
+                'type': 'Byte'
+            },
+            50935: {
+                'name': 'NoiseReductionApplied',
+                'type': 'Rational'
+            },
+            50936: {
+                'name': 'ProfileName',
+                'type': 'Byte'
+            },
+            50937: {
+                'name': 'ProfileHueSatMapDims',
+                'type': 'Long'
+            },
+            50938: {
+                'name': 'ProfileHueSatMapData1',
+                'type': 'Float'
+            },
+            50939: {
+                'name': 'ProfileHueSatMapData2',
+                'type': 'Float'
+            },
+            50940: {
+                'name': 'ProfileToneCurve',
+                'type': 'Float'
+            },
+            50941: {
+                'name': 'ProfileEmbedPolicy',
+                'type': 'Long'
+            },
+            50942: {
+                'name': 'ProfileCopyright',
+                'type': 'Byte'
+            },
+            50964: {
+                'name': 'ForwardMatrix1',
+                'type': 'SRational'
+            },
+            50965: {
+                'name': 'ForwardMatrix2',
+                'type': 'SRational'
+            },
+            50966: {
+                'name': 'PreviewApplicationName',
+                'type': 'Byte'
+            },
+            50967: {
+                'name': 'PreviewApplicationVersion',
+                'type': 'Byte'
+            },
+            50968: {
+                'name': 'PreviewSettingsName',
+                'type': 'Byte'
+            },
+            50969: {
+                'name': 'PreviewSettingsDigest',
+                'type': 'Byte'
+            },
+            50970: {
+                'name': 'PreviewColorSpace',
+                'type': 'Long'
+            },
+            50971: {
+                'name': 'PreviewDateTime',
+                'type': 'Ascii'
+            },
+            50972: {
+                'name': 'RawImageDigest',
+                'type': 'Undefined'
+            },
+            50973: {
+                'name': 'OriginalRawFileDigest',
+                'type': 'Undefined'
+            },
+            50974: {
+                'name': 'SubTileBlockSize',
+                'type': 'Long'
+            },
+            50975: {
+                'name': 'RowInterleaveFactor',
+                'type': 'Long'
+            },
+            50981: {
+                'name': 'ProfileLookTableDims',
+                'type': 'Long'
+            },
+            50982: {
+                'name': 'ProfileLookTableData',
+                'type': 'Float'
+            },
+            51008: {
+                'name': 'OpcodeList1',
+                'type': 'Undefined'
+            },
+            51009: {
+                'name': 'OpcodeList2',
+                'type': 'Undefined'
+            },
+            51022: {
+                'name': 'OpcodeList3',
+                'type': 'Undefined'
+            }
+        },
+        'Exif': {
+            33434: {
+                'name': 'ExposureTime',
+                'type': 'Rational'
+            },
+            33437: {
+                'name': 'FNumber',
+                'type': 'Rational'
+            },
+            34850: {
+                'name': 'ExposureProgram',
+                'type': 'Short'
+            },
+            34852: {
+                'name': 'SpectralSensitivity',
+                'type': 'Ascii'
+            },
+            34855: {
+                'name': 'ISOSpeedRatings',
+                'type': 'Short'
+            },
+            34856: {
+                'name': 'OECF',
+                'type': 'Undefined'
+            },
+            34864: {
+                'name': 'SensitivityType',
+                'type': 'Short'
+            },
+            34865: {
+                'name': 'StandardOutputSensitivity',
+                'type': 'Long'
+            },
+            34866: {
+                'name': 'RecommendedExposureIndex',
+                'type': 'Long'
+            },
+            34867: {
+                'name': 'ISOSpeed',
+                'type': 'Long'
+            },
+            34868: {
+                'name': 'ISOSpeedLatitudeyyy',
+                'type': 'Long'
+            },
+            34869: {
+                'name': 'ISOSpeedLatitudezzz',
+                'type': 'Long'
+            },
+            36864: {
+                'name': 'ExifVersion',
+                'type': 'Undefined'
+            },
+            36867: {
+                'name': 'DateTimeOriginal',
+                'type': 'Ascii'
+            },
+            36868: {
+                'name': 'DateTimeDigitized',
+                'type': 'Ascii'
+            },
+            37121: {
+                'name': 'ComponentsConfiguration',
+                'type': 'Undefined'
+            },
+            37122: {
+                'name': 'CompressedBitsPerPixel',
+                'type': 'Rational'
+            },
+            37377: {
+                'name': 'ShutterSpeedValue',
+                'type': 'SRational'
+            },
+            37378: {
+                'name': 'ApertureValue',
+                'type': 'Rational'
+            },
+            37379: {
+                'name': 'BrightnessValue',
+                'type': 'SRational'
+            },
+            37380: {
+                'name': 'ExposureBiasValue',
+                'type': 'SRational'
+            },
+            37381: {
+                'name': 'MaxApertureValue',
+                'type': 'Rational'
+            },
+            37382: {
+                'name': 'SubjectDistance',
+                'type': 'Rational'
+            },
+            37383: {
+                'name': 'MeteringMode',
+                'type': 'Short'
+            },
+            37384: {
+                'name': 'LightSource',
+                'type': 'Short'
+            },
+            37385: {
+                'name': 'Flash',
+                'type': 'Short'
+            },
+            37386: {
+                'name': 'FocalLength',
+                'type': 'Rational'
+            },
+            37396: {
+                'name': 'SubjectArea',
+                'type': 'Short'
+            },
+            37500: {
+                'name': 'MakerNote',
+                'type': 'Undefined'
+            },
+            37510: {
+                'name': 'UserComment',
+                'type': 'Ascii'
+            },
+            37520: {
+                'name': 'SubSecTime',
+                'type': 'Ascii'
+            },
+            37521: {
+                'name': 'SubSecTimeOriginal',
+                'type': 'Ascii'
+            },
+            37522: {
+                'name': 'SubSecTimeDigitized',
+                'type': 'Ascii'
+            },
+            40960: {
+                'name': 'FlashpixVersion',
+                'type': 'Undefined'
+            },
+            40961: {
+                'name': 'ColorSpace',
+                'type': 'Short'
+            },
+            40962: {
+                'name': 'PixelXDimension',
+                'type': 'Long'
+            },
+            40963: {
+                'name': 'PixelYDimension',
+                'type': 'Long'
+            },
+            40964: {
+                'name': 'RelatedSoundFile',
+                'type': 'Ascii'
+            },
+            40965: {
+                'name': 'InteroperabilityTag',
+                'type': 'Long'
+            },
+            41483: {
+                'name': 'FlashEnergy',
+                'type': 'Rational'
+            },
+            41484: {
+                'name': 'SpatialFrequencyResponse',
+                'type': 'Undefined'
+            },
+            41486: {
+                'name': 'FocalPlaneXResolution',
+                'type': 'Rational'
+            },
+            41487: {
+                'name': 'FocalPlaneYResolution',
+                'type': 'Rational'
+            },
+            41488: {
+                'name': 'FocalPlaneResolutionUnit',
+                'type': 'Short'
+            },
+            41492: {
+                'name': 'SubjectLocation',
+                'type': 'Short'
+            },
+            41493: {
+                'name': 'ExposureIndex',
+                'type': 'Rational'
+            },
+            41495: {
+                'name': 'SensingMethod',
+                'type': 'Short'
+            },
+            41728: {
+                'name': 'FileSource',
+                'type': 'Undefined'
+            },
+            41729: {
+                'name': 'SceneType',
+                'type': 'Undefined'
+            },
+            41730: {
+                'name': 'CFAPattern',
+                'type': 'Undefined'
+            },
+            41985: {
+                'name': 'CustomRendered',
+                'type': 'Short'
+            },
+            41986: {
+                'name': 'ExposureMode',
+                'type': 'Short'
+            },
+            41987: {
+                'name': 'WhiteBalance',
+                'type': 'Short'
+            },
+            41988: {
+                'name': 'DigitalZoomRatio',
+                'type': 'Rational'
+            },
+            41989: {
+                'name': 'FocalLengthIn35mmFilm',
+                'type': 'Short'
+            },
+            41990: {
+                'name': 'SceneCaptureType',
+                'type': 'Short'
+            },
+            41991: {
+                'name': 'GainControl',
+                'type': 'Short'
+            },
+            41992: {
+                'name': 'Contrast',
+                'type': 'Short'
+            },
+            41993: {
+                'name': 'Saturation',
+                'type': 'Short'
+            },
+            41994: {
+                'name': 'Sharpness',
+                'type': 'Short'
+            },
+            41995: {
+                'name': 'DeviceSettingDescription',
+                'type': 'Undefined'
+            },
+            41996: {
+                'name': 'SubjectDistanceRange',
+                'type': 'Short'
+            },
+            42016: {
+                'name': 'ImageUniqueID',
+                'type': 'Ascii'
+            },
+            42032: {
+                'name': 'CameraOwnerName',
+                'type': 'Ascii'
+            },
+            42033: {
+                'name': 'BodySerialNumber',
+                'type': 'Ascii'
+            },
+            42034: {
+                'name': 'LensSpecification',
+                'type': 'Rational'
+            },
+            42035: {
+                'name': 'LensMake',
+                'type': 'Ascii'
+            },
+            42036: {
+                'name': 'LensModel',
+                'type': 'Ascii'
+            },
+            42037: {
+                'name': 'LensSerialNumber',
+                'type': 'Ascii'
+            },
+            42240: {
+                'name': 'Gamma',
+                'type': 'Rational'
+            }
+        },
+        'GPS': {
+            0: {
+                'name': 'GPSVersionID',
+                'type': 'Byte'
+            },
+            1: {
+                'name': 'GPSLatitudeRef',
+                'type': 'Ascii'
+            },
+            2: {
+                'name': 'GPSLatitude',
+                'type': 'Rational'
+            },
+            3: {
+                'name': 'GPSLongitudeRef',
+                'type': 'Ascii'
+            },
+            4: {
+                'name': 'GPSLongitude',
+                'type': 'Rational'
+            },
+            5: {
+                'name': 'GPSAltitudeRef',
+                'type': 'Byte'
+            },
+            6: {
+                'name': 'GPSAltitude',
+                'type': 'Rational'
+            },
+            7: {
+                'name': 'GPSTimeStamp',
+                'type': 'Rational'
+            },
+            8: {
+                'name': 'GPSSatellites',
+                'type': 'Ascii'
+            },
+            9: {
+                'name': 'GPSStatus',
+                'type': 'Ascii'
+            },
+            10: {
+                'name': 'GPSMeasureMode',
+                'type': 'Ascii'
+            },
+            11: {
+                'name': 'GPSDOP',
+                'type': 'Rational'
+            },
+            12: {
+                'name': 'GPSSpeedRef',
+                'type': 'Ascii'
+            },
+            13: {
+                'name': 'GPSSpeed',
+                'type': 'Rational'
+            },
+            14: {
+                'name': 'GPSTrackRef',
+                'type': 'Ascii'
+            },
+            15: {
+                'name': 'GPSTrack',
+                'type': 'Rational'
+            },
+            16: {
+                'name': 'GPSImgDirectionRef',
+                'type': 'Ascii'
+            },
+            17: {
+                'name': 'GPSImgDirection',
+                'type': 'Rational'
+            },
+            18: {
+                'name': 'GPSMapDatum',
+                'type': 'Ascii'
+            },
+            19: {
+                'name': 'GPSDestLatitudeRef',
+                'type': 'Ascii'
+            },
+            20: {
+                'name': 'GPSDestLatitude',
+                'type': 'Rational'
+            },
+            21: {
+                'name': 'GPSDestLongitudeRef',
+                'type': 'Ascii'
+            },
+            22: {
+                'name': 'GPSDestLongitude',
+                'type': 'Rational'
+            },
+            23: {
+                'name': 'GPSDestBearingRef',
+                'type': 'Ascii'
+            },
+            24: {
+                'name': 'GPSDestBearing',
+                'type': 'Rational'
+            },
+            25: {
+                'name': 'GPSDestDistanceRef',
+                'type': 'Ascii'
+            },
+            26: {
+                'name': 'GPSDestDistance',
+                'type': 'Rational'
+            },
+            27: {
+                'name': 'GPSProcessingMethod',
+                'type': 'Undefined'
+            },
+            28: {
+                'name': 'GPSAreaInformation',
+                'type': 'Undefined'
+            },
+            29: {
+                'name': 'GPSDateStamp',
+                'type': 'Ascii'
+            },
+            30: {
+                'name': 'GPSDifferential',
+                'type': 'Short'
+            },
+            31: {
+                'name': 'GPSHPositioningError',
+                'type': 'Rational'
+            }
+        },
+        'Interop': {
+            1: {
+                'name': 'InteroperabilityIndex',
+                'type': 'Ascii'
+            }
+        },
+    };
+    TAGS["0th"] = TAGS["Image"];
+    TAGS["1st"] = TAGS["Image"];
+    that.TAGS = TAGS;
+
+    
+    that.ImageIFD = {
+        ProcessingSoftware:11,
+        NewSubfileType:254,
+        SubfileType:255,
+        ImageWidth:256,
+        ImageLength:257,
+        BitsPerSample:258,
+        Compression:259,
+        PhotometricInterpretation:262,
+        Threshholding:263,
+        CellWidth:264,
+        CellLength:265,
+        FillOrder:266,
+        DocumentName:269,
+        ImageDescription:270,
+        Make:271,
+        Model:272,
+        StripOffsets:273,
+        Orientation:274,
+        SamplesPerPixel:277,
+        RowsPerStrip:278,
+        StripByteCounts:279,
+        XResolution:282,
+        YResolution:283,
+        PlanarConfiguration:284,
+        GrayResponseUnit:290,
+        GrayResponseCurve:291,
+        T4Options:292,
+        T6Options:293,
+        ResolutionUnit:296,
+        TransferFunction:301,
+        Software:305,
+        DateTime:306,
+        Artist:315,
+        HostComputer:316,
+        Predictor:317,
+        WhitePoint:318,
+        PrimaryChromaticities:319,
+        ColorMap:320,
+        HalftoneHints:321,
+        TileWidth:322,
+        TileLength:323,
+        TileOffsets:324,
+        TileByteCounts:325,
+        SubIFDs:330,
+        InkSet:332,
+        InkNames:333,
+        NumberOfInks:334,
+        DotRange:336,
+        TargetPrinter:337,
+        ExtraSamples:338,
+        SampleFormat:339,
+        SMinSampleValue:340,
+        SMaxSampleValue:341,
+        TransferRange:342,
+        ClipPath:343,
+        XClipPathUnits:344,
+        YClipPathUnits:345,
+        Indexed:346,
+        JPEGTables:347,
+        OPIProxy:351,
+        JPEGProc:512,
+        JPEGInterchangeFormat:513,
+        JPEGInterchangeFormatLength:514,
+        JPEGRestartInterval:515,
+        JPEGLosslessPredictors:517,
+        JPEGPointTransforms:518,
+        JPEGQTables:519,
+        JPEGDCTables:520,
+        JPEGACTables:521,
+        YCbCrCoefficients:529,
+        YCbCrSubSampling:530,
+        YCbCrPositioning:531,
+        ReferenceBlackWhite:532,
+        XMLPacket:700,
+        Rating:18246,
+        RatingPercent:18249,
+        ImageID:32781,
+        CFARepeatPatternDim:33421,
+        CFAPattern:33422,
+        BatteryLevel:33423,
+        Copyright:33432,
+        ExposureTime:33434,
+        ImageResources:34377,
+        ExifTag:34665,
+        InterColorProfile:34675,
+        GPSTag:34853,
+        Interlace:34857,
+        TimeZoneOffset:34858,
+        SelfTimerMode:34859,
+        FlashEnergy:37387,
+        SpatialFrequencyResponse:37388,
+        Noise:37389,
+        FocalPlaneXResolution:37390,
+        FocalPlaneYResolution:37391,
+        FocalPlaneResolutionUnit:37392,
+        ImageNumber:37393,
+        SecurityClassification:37394,
+        ImageHistory:37395,
+        ExposureIndex:37397,
+        TIFFEPStandardID:37398,
+        SensingMethod:37399,
+        XPTitle:40091,
+        XPComment:40092,
+        XPAuthor:40093,
+        XPKeywords:40094,
+        XPSubject:40095,
+        PrintImageMatching:50341,
+        DNGVersion:50706,
+        DNGBackwardVersion:50707,
+        UniqueCameraModel:50708,
+        LocalizedCameraModel:50709,
+        CFAPlaneColor:50710,
+        CFALayout:50711,
+        LinearizationTable:50712,
+        BlackLevelRepeatDim:50713,
+        BlackLevel:50714,
+        BlackLevelDeltaH:50715,
+        BlackLevelDeltaV:50716,
+        WhiteLevel:50717,
+        DefaultScale:50718,
+        DefaultCropOrigin:50719,
+        DefaultCropSize:50720,
+        ColorMatrix1:50721,
+        ColorMatrix2:50722,
+        CameraCalibration1:50723,
+        CameraCalibration2:50724,
+        ReductionMatrix1:50725,
+        ReductionMatrix2:50726,
+        AnalogBalance:50727,
+        AsShotNeutral:50728,
+        AsShotWhiteXY:50729,
+        BaselineExposure:50730,
+        BaselineNoise:50731,
+        BaselineSharpness:50732,
+        BayerGreenSplit:50733,
+        LinearResponseLimit:50734,
+        CameraSerialNumber:50735,
+        LensInfo:50736,
+        ChromaBlurRadius:50737,
+        AntiAliasStrength:50738,
+        ShadowScale:50739,
+        DNGPrivateData:50740,
+        MakerNoteSafety:50741,
+        CalibrationIlluminant1:50778,
+        CalibrationIlluminant2:50779,
+        BestQualityScale:50780,
+        RawDataUniqueID:50781,
+        OriginalRawFileName:50827,
+        OriginalRawFileData:50828,
+        ActiveArea:50829,
+        MaskedAreas:50830,
+        AsShotICCProfile:50831,
+        AsShotPreProfileMatrix:50832,
+        CurrentICCProfile:50833,
+        CurrentPreProfileMatrix:50834,
+        ColorimetricReference:50879,
+        CameraCalibrationSignature:50931,
+        ProfileCalibrationSignature:50932,
+        AsShotProfileName:50934,
+        NoiseReductionApplied:50935,
+        ProfileName:50936,
+        ProfileHueSatMapDims:50937,
+        ProfileHueSatMapData1:50938,
+        ProfileHueSatMapData2:50939,
+        ProfileToneCurve:50940,
+        ProfileEmbedPolicy:50941,
+        ProfileCopyright:50942,
+        ForwardMatrix1:50964,
+        ForwardMatrix2:50965,
+        PreviewApplicationName:50966,
+        PreviewApplicationVersion:50967,
+        PreviewSettingsName:50968,
+        PreviewSettingsDigest:50969,
+        PreviewColorSpace:50970,
+        PreviewDateTime:50971,
+        RawImageDigest:50972,
+        OriginalRawFileDigest:50973,
+        SubTileBlockSize:50974,
+        RowInterleaveFactor:50975,
+        ProfileLookTableDims:50981,
+        ProfileLookTableData:50982,
+        OpcodeList1:51008,
+        OpcodeList2:51009,
+        OpcodeList3:51022,
+        NoiseProfile:51041,
+    };
+
+    
+    that.ExifIFD = {
+        ExposureTime:33434,
+        FNumber:33437,
+        ExposureProgram:34850,
+        SpectralSensitivity:34852,
+        ISOSpeedRatings:34855,
+        OECF:34856,
+        SensitivityType:34864,
+        StandardOutputSensitivity:34865,
+        RecommendedExposureIndex:34866,
+        ISOSpeed:34867,
+        ISOSpeedLatitudeyyy:34868,
+        ISOSpeedLatitudezzz:34869,
+        ExifVersion:36864,
+        DateTimeOriginal:36867,
+        DateTimeDigitized:36868,
+        ComponentsConfiguration:37121,
+        CompressedBitsPerPixel:37122,
+        ShutterSpeedValue:37377,
+        ApertureValue:37378,
+        BrightnessValue:37379,
+        ExposureBiasValue:37380,
+        MaxApertureValue:37381,
+        SubjectDistance:37382,
+        MeteringMode:37383,
+        LightSource:37384,
+        Flash:37385,
+        FocalLength:37386,
+        SubjectArea:37396,
+        MakerNote:37500,
+        UserComment:37510,
+        SubSecTime:37520,
+        SubSecTimeOriginal:37521,
+        SubSecTimeDigitized:37522,
+        FlashpixVersion:40960,
+        ColorSpace:40961,
+        PixelXDimension:40962,
+        PixelYDimension:40963,
+        RelatedSoundFile:40964,
+        InteroperabilityTag:40965,
+        FlashEnergy:41483,
+        SpatialFrequencyResponse:41484,
+        FocalPlaneXResolution:41486,
+        FocalPlaneYResolution:41487,
+        FocalPlaneResolutionUnit:41488,
+        SubjectLocation:41492,
+        ExposureIndex:41493,
+        SensingMethod:41495,
+        FileSource:41728,
+        SceneType:41729,
+        CFAPattern:41730,
+        CustomRendered:41985,
+        ExposureMode:41986,
+        WhiteBalance:41987,
+        DigitalZoomRatio:41988,
+        FocalLengthIn35mmFilm:41989,
+        SceneCaptureType:41990,
+        GainControl:41991,
+        Contrast:41992,
+        Saturation:41993,
+        Sharpness:41994,
+        DeviceSettingDescription:41995,
+        SubjectDistanceRange:41996,
+        ImageUniqueID:42016,
+        CameraOwnerName:42032,
+        BodySerialNumber:42033,
+        LensSpecification:42034,
+        LensMake:42035,
+        LensModel:42036,
+        LensSerialNumber:42037,
+        Gamma:42240,
+    };
+
+
+    that.GPSIFD = {
+        GPSVersionID:0,
+        GPSLatitudeRef:1,
+        GPSLatitude:2,
+        GPSLongitudeRef:3,
+        GPSLongitude:4,
+        GPSAltitudeRef:5,
+        GPSAltitude:6,
+        GPSTimeStamp:7,
+        GPSSatellites:8,
+        GPSStatus:9,
+        GPSMeasureMode:10,
+        GPSDOP:11,
+        GPSSpeedRef:12,
+        GPSSpeed:13,
+        GPSTrackRef:14,
+        GPSTrack:15,
+        GPSImgDirectionRef:16,
+        GPSImgDirection:17,
+        GPSMapDatum:18,
+        GPSDestLatitudeRef:19,
+        GPSDestLatitude:20,
+        GPSDestLongitudeRef:21,
+        GPSDestLongitude:22,
+        GPSDestBearingRef:23,
+        GPSDestBearing:24,
+        GPSDestDistanceRef:25,
+        GPSDestDistance:26,
+        GPSProcessingMethod:27,
+        GPSAreaInformation:28,
+        GPSDateStamp:29,
+        GPSDifferential:30,
+        GPSHPositioningError:31,
+    };
+
+
+    that.InteropIFD = {
+        InteroperabilityIndex:1,
+    };
+
+    that.GPSHelper = {
+        degToDmsRational:function (degFloat) {
+            var degAbs = Math.abs(degFloat);
+            var minFloat = degAbs % 1 * 60;
+            var secFloat = minFloat % 1 * 60;
+            var deg = Math.floor(degAbs);
+            var min = Math.floor(minFloat);
+            var sec = Math.round(secFloat * 100);
+
+            return [[deg, 1], [min, 1], [sec, 100]];
+        },
+
+        dmsRationalToDeg:function (dmsArray, ref) {
+            var sign = (ref === 'S' || ref === 'W') ? -1.0 : 1.0;
+            var deg = dmsArray[0][0] / dmsArray[0][1] +
+                      dmsArray[1][0] / dmsArray[1][1] / 60.0 +
+                      dmsArray[2][0] / dmsArray[2][1] / 3600.0;
+
+            return deg * sign;
+        }
+    };
+    
+    
+    if (typeof exports !== 'undefined') {
+        if (typeof module !== 'undefined' && module.exports) {
+            exports = module.exports = that;
+        }
+        exports.piexif = that;
+    } else {
+        window.piexif = that;
+    }
+
+})();
+
+</script>
+<script>
+// =============== POLYFILLS & COMPAT ===============
+// padStart polyfill (Android 7 / Chrome <57)
+if (!String.prototype.padStart) {
+  String.prototype.padStart = function(len, fill) {
+    var s = String(this); fill = fill || ' ';
+    while (s.length < len) s = fill + s;
+    return s;
+  };
+}
+// Array.from polyfill (old WebView)
+if (!Array.from) {
+  Array.from = function(a) { return [].slice.call(a); };
+}
+// Legacy getUserMedia shim
+if (navigator.mediaDevices === undefined) navigator.mediaDevices = {};
+if (navigator.mediaDevices.getUserMedia === undefined) {
+  navigator.mediaDevices.getUserMedia = function(c) {
+    var gum = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.getUserMedia;
+    if (!gum) return Promise.reject(new Error('getUserMedia not supported'));
+    return new Promise(function(resolve, reject) { gum.call(navigator, c, resolve, reject); });
+  };
+}
+// NodeList.forEach polyfill
+if (!NodeList.prototype.forEach) {
+  NodeList.prototype.forEach = Array.prototype.forEach;
+}
+
+// =============== STATE ===============
+const S = {
+  photo: null, img: null, photoSize: 0,
+  pos: 'bl', theme: 'cyan',
+  fs: 36, bgOp: 0.7, qual: 1.0,
+  upscale: 3,
+  savedDt: new Date(),
+  facing: 'environment', stream: null,
+  map: null, marker: null
+};
+
+const TH = {
+  cyan:  { bg:'rgba(0,30,50,',  t:'#ffffff', a:'#00e5ff', b:'rgba(0,229,255,0.5)' },
+  amber: { bg:'rgba(50,35,0,',  t:'#ffffff', a:'#ffca28', b:'rgba(255,202,40,0.5)' },
+  green: { bg:'rgba(0,40,20,',  t:'#ffffff', a:'#69f0ae', b:'rgba(105,240,174,0.5)' },
+  red:   { bg:'rgba(50,10,10,', t:'#ffffff', a:'#ff5252', b:'rgba(255,82,82,0.5)' },
+  white: { bg:'rgba(255,255,255,', t:'#1a1a1a', a:'#333333', b:'rgba(0,0,0,0.3)' },
+  dark:  { bg:'rgba(0,0,0,',    t:'#ffffff', a:'#b0bec5', b:'rgba(255,255,255,0.2)' },
+};
+
+// =============== INIT ===============
+window.addEventListener('DOMContentLoaded', () => {
+  setNow();
+  initMap();
+  gpsAuto();
+  startCam();
+  // Verify piexif loaded
+  if (typeof piexif === 'undefined') {
+    toast('⚠️ EXIF library gagal load', true);
+    console.error('piexif is undefined!');
+  } else {
+    console.log('piexifjs loaded OK. Version check:', typeof piexif.dump, typeof piexif.insert);
+  }
+});
+
+// =============== MAP ===============
+function initMap() {
+  if (typeof L === 'undefined') {
+    console.warn('Leaflet not loaded');
+    document.getElementById('mapBox').innerHTML = '<div style="padding:20px;text-align:center;color:#556782;font-size:13px">Peta tidak tersedia. Isi koordinat manual atau gunakan GPS Otomatis.</div>';
+    return;
+  }
+  try {
+    S.map = L.map('mapBox', { attributionControl: false }).setView([-7.05, 112.73], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(S.map);
+
+    S.marker = L.marker([-7.05, 112.73], { draggable: true }).addTo(S.map);
+
+    // Tap on map to move marker
+    S.map.on('click', function(e) {
+      S.marker.setLatLng(e.latlng);
+      updateLocFromMarker(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Drag marker
+    S.marker.on('dragend', function() {
+      const ll = S.marker.getLatLng();
+      updateLocFromMarker(ll.lat, ll.lng);
+    });
+  } catch(e) {
+    console.warn('Map init failed:', e);
+    document.getElementById('mapBox').innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Peta tidak tersedia</div>';
+  }
+}
+
+function updateLocFromMarker(lat, lng) {
+  document.getElementById('iLat').value = lat.toFixed(7);
+  document.getElementById('iLng').value = lng.toFixed(7);
+  checkReady();
+  // Auto reverse geocode
+  cariAlamat();
+}
+
+// =============== LOCATION ===============
+function gpsAuto() {
+  if (!navigator.geolocation) {
+    toast('⚠️ GPS tidak tersedia', true);
+    return;
+  }
+  toast('📡 Mencari GPS...');
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      document.getElementById('iLat').value = lat.toFixed(7);
+      document.getElementById('iLng').value = lng.toFixed(7);
+      if (S.map && S.marker) {
+        S.map.setView([lat, lng], 16);
+        S.marker.setLatLng([lat, lng]);
+      }
+      toast('✅ GPS ditemukan!');
+      checkReady();
+      cariAlamat();
+    },
+    (err) => {
+      let m = 'Gagal GPS';
+      if (err.code === 1) m = 'Akses GPS ditolak';
+      toast('⚠️ ' + m, true);
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+async function cariAlamat() {
+  const lat = parseFloat(document.getElementById('iLat').value);
+  const lng = parseFloat(document.getElementById('iLng').value);
+  if (isNaN(lat) || isNaN(lng)) { toast('⚠️ Isi LAT & LNG dulu', true); return; }
+
+  const el = document.getElementById('iAddr');
+  el.value = '⏳ Mencari alamat...';
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=id`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (d.error) {
+      el.value = '';
+      toast('⚠️ Lokasi tidak ditemukan', true);
+    } else {
+      el.value = d.display_name || '';
+      toast('✅ Alamat ditemukan!');
+    }
+  } catch(e) {
+    el.value = '';
+    toast('⚠️ Gagal cari alamat. Coba "Buka Google Maps"', true);
+    console.error('Geocode:', e);
+  }
+}
+
+function bukaGMaps() {
+  const lat = parseFloat(document.getElementById('iLat').value) || -7.05;
+  const lng = parseFloat(document.getElementById('iLng').value) || 112.73;
+  window.open(`https://www.google.com/maps?q=${lat},${lng}&z=17`, '_blank');
+}
+
+function getLoc() {
+  return {
+    lat: parseFloat(document.getElementById('iLat').value) || 0,
+    lng: parseFloat(document.getElementById('iLng').value) || 0,
+    addr: document.getElementById('iAddr').value || ''
+  };
+}
+
+// =============== DATETIME ===============
+function setNow() {
+  S.savedDt = new Date();
+  updateDtDisplay();
+  toast('✅ Waktu: Sekarang');
+}
+
+function updateDtDisplay() {
+  document.getElementById('dtValText').textContent = fmtDt(S.savedDt);
+}
+
+function openDtPicker() {
+  const d = S.savedDt;
+  const p = n => String(n).padStart(2, '0');
+  document.getElementById('pickDate').value = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  document.getElementById('pickTime').value = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  updateDtPickPreview();
+  document.getElementById('dtModal').classList.add('open');
+  // Listen for changes
+  document.getElementById('pickDate').onchange = updateDtPickPreview;
+  document.getElementById('pickTime').onchange = updateDtPickPreview;
+  document.getElementById('pickTime').oninput = updateDtPickPreview;
+}
+
+function updateDtPickPreview() {
+  const dv = document.getElementById('pickDate').value;
+  const tv = document.getElementById('pickTime').value;
+  if (dv && tv) {
+    const d = new Date(dv + 'T' + tv);
+    document.getElementById('dtPickPreview').textContent = fmtDt(d);
+  }
+}
+
+function closeDtModal(e) {
+  if (e.target === e.currentTarget) closeDtPicker();
+}
+
+function closeDtPicker() {
+  document.getElementById('dtModal').classList.remove('open');
+}
+
+function confirmDtPicker() {
+  const dv = document.getElementById('pickDate').value;
+  const tv = document.getElementById('pickTime').value;
+  if (!dv || !tv) { toast('⚠️ Pilih tanggal dan jam', true); return; }
+  S.savedDt = new Date(dv + 'T' + tv);
+  updateDtDisplay();
+  closeDtPicker();
+  toast('✅ Waktu disimpan: ' + fmtDt(S.savedDt));
+}
+
+function getDt() { return S.savedDt; }
+
+function fmtDt(d) {
+  const p = n => String(n).padStart(2, '0');
+  const dn = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const mn = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  return `${dn[d.getDay()]}, ${d.getDate()} ${mn[d.getMonth()]} ${d.getFullYear()} • ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+// =============== CAMERA ===============
+async function startCam() {
+  try {
+    if (S.stream) S.stream.getTracks().forEach(function(t) { t.stop(); });
+    S.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: S.facing, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false
+    });
+    var vid = document.getElementById('vid');
+    if ('srcObject' in vid) {
+      vid.srcObject = S.stream;
+    } else {
+      vid.src = window.URL.createObjectURL(S.stream); // legacy
+    }
+  } catch(e) {
+    console.warn('Camera not available:', e.message);
+    // Show upload mode instead
+    swSrc('upl');
+  }
+}
+
+function swCam() {
+  S.facing = S.facing === 'environment' ? 'user' : 'environment';
+  startCam();
+}
+
+function capture() {
+  const v = document.getElementById('vid');
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  loadPhoto(c.toDataURL('image/jpeg', 0.95));
+  setNow();
+}
+
+// =============== FILE ===============
+function onFile(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => { loadPhoto(ev.target.result); setNow(); };
+  r.readAsDataURL(f);
+  e.target.value = '';
+}
+
+function loadPhoto(du) {
+  S.photo = du;
+  // Detect file size from base64
+  const b64len = (du.split(',')[1] || '').length || 0;
+  S.photoSize = Math.round(b64len * 0.75); // bytes
+  // Auto upscale: skip if >= 2MB
+  S.upscale = S.photoSize >= 2 * 1024 * 1024 ? 1 : 3;
+  const img = new Image();
+  img.onload = () => {
+    S.img = img;
+    document.getElementById('prevImg').src = du;
+    document.getElementById('prevSec').classList.add('on');
+    document.getElementById('camBox').classList.remove('on');
+    document.getElementById('uplBox').classList.remove('on');
+    updateResHint();
+    checkReady();
+  };
+  img.src = du;
+}
+
+function rmPhoto() {
+  S.photo = null; S.img = null;
+  document.getElementById('prevSec').classList.remove('on');
+  document.getElementById('resSec').classList.remove('on');
+  document.getElementById('btnDl').style.display = 'none';
+  document.getElementById('btnReproc').style.display = 'none';
+  document.getElementById('btnProc').style.display = 'flex';
+  const ac = document.querySelector('.sbtn.on');
+  if (ac && ac.id === 'btnCam') { document.getElementById('camBox').classList.add('on'); startCam(); }
+  else document.getElementById('uplBox').classList.add('on');
+  checkReady();
+}
+
+function swSrc(m) {
+  document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('on'));
+  document.getElementById('camBox').classList.remove('on');
+  document.getElementById('uplBox').classList.remove('on');
+  if (m === 'cam') {
+    document.getElementById('btnCam').classList.add('on');
+    if (!S.photo) { document.getElementById('camBox').classList.add('on'); startCam(); }
+  } else {
+    document.getElementById('btnUpl').classList.add('on');
+    if (S.stream) { S.stream.getTracks().forEach(t => t.stop()); S.stream = null; }
+    if (!S.photo) document.getElementById('uplBox').classList.add('on');
+  }
+}
+
+// =============== SETTINGS ===============
+function setP(el) { document.querySelectorAll('.pc').forEach(c=>c.classList.remove('on')); el.classList.add('on'); S.pos=el.dataset.p; }
+function setT(el) { document.querySelectorAll('[data-t]').forEach(c=>c.classList.remove('on')); el.classList.add('on'); S.theme=el.dataset.t; }
+function updateResHint() {
+  const h = document.getElementById('resHint');
+  const info = document.getElementById('outputInfo');
+  if (!S.img) { h.textContent = ''; info.textContent = 'Kualitas 100%'; return; }
+  const sizeMB = (S.photoSize / (1024 * 1024)).toFixed(1);
+  const w = Math.round(S.img.naturalWidth * S.upscale);
+  const ht = Math.round(S.img.naturalHeight * S.upscale);
+  if (S.upscale > 1) {
+    info.textContent = `Kualitas 100% • Upscale ${S.upscale}x`;
+    h.textContent = `Foto ${sizeMB}MB (<2MB) → upscale ${S.img.naturalWidth}×${S.img.naturalHeight} → ${w}×${ht}px`;
+  } else {
+    info.textContent = `Kualitas 100% • Resolusi Asli`;
+    h.textContent = `Foto ${sizeMB}MB (≥2MB) → tanpa upscale, ${w}×${ht}px`;
+  }
+}
+function updS() {
+  S.fs = parseInt(document.getElementById('rFs').value);
+  S.bgOp = parseInt(document.getElementById('rOp').value) / 100;
+  document.getElementById('vFs').textContent = S.fs + 'px';
+  document.getElementById('vOp').textContent = document.getElementById('rOp').value + '%';
+}
+function checkReady() {
+  const hasLat = document.getElementById('iLat').value !== '';
+  document.getElementById('btnProc').disabled = !(S.photo && hasLat);
+}
+
+// =============== PROCESS ===============
+function process() {
+  if (!S.photo) return;
+  const img = S.img;
+  const cv = document.getElementById('resC');
+  const cx = cv.getContext('2d');
+  const us = S.upscale;
+  cv.width = Math.round(img.naturalWidth * us);
+  cv.height = Math.round(img.naturalHeight * us);
+
+  // Draw upscaled image with smooth interpolation
+  cx.imageSmoothingEnabled = true;
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(img, 0, 0, cv.width, cv.height);
+
+  const loc = getLoc();
+  const dt = getDt();
+  const dtStr = fmtDt(dt);
+
+  const lines = [dtStr, `${loc.lat.toFixed(7)}, ${loc.lng.toFixed(7)}`];
+  if (loc.addr && !loc.addr.startsWith('⏳')) {
+    const a = loc.addr;
+    if (a.length > 60) {
+      const m = a.lastIndexOf(',', 55);
+      if (m > 15) { lines.push(a.substring(0, m + 1)); lines.push(a.substring(m + 1).trim()); }
+      else lines.push(a.substring(0, 75) + '…');
+    } else lines.push(a);
+  }
+
+  const th = TH[S.theme];
+  const sc = Math.max(1, Math.min(cv.width, cv.height) / 800);
+  const fs = Math.round(S.fs * sc);
+  const pd = Math.round(20 * sc);
+  const lh = fs * 1.55;
+  const bw = Math.round(3 * sc);
+
+  // Measure with title font
+  cx.font = `700 ${fs}px 'DM Sans','Segoe UI',sans-serif`;
+  cx.textBaseline = 'top';
+  let maxW = cx.measureText(lines[0]).width;
+
+  // Measure rest with smaller font
+  cx.font = `500 ${Math.round(fs * 0.85)}px 'DM Sans','Segoe UI',sans-serif`;
+  for (let i = 1; i < lines.length; i++) maxW = Math.max(maxW, cx.measureText(lines[i]).width);
+
+  const bxW = maxW + pd * 3;
+  const bxH = lines.length * lh + pd * 2;
+
+  let x, y;
+  const mg = Math.round(28 * sc);
+  if (S.pos.includes('l')) x = mg;
+  else if (S.pos.includes('r')) x = cv.width - bxW - mg;
+  else x = (cv.width - bxW) / 2;
+  if (S.pos.startsWith('t')) y = mg;
+  else if (S.pos.startsWith('b')) y = cv.height - bxH - mg;
+  else y = (cv.height - bxH) / 2;
+
+  // BG
+  cx.save();
+  cx.beginPath();
+  rr(cx, x, y, bxW, bxH, 14 * sc);
+  cx.fillStyle = th.bg + S.bgOp + ')';
+  cx.fill();
+  cx.strokeStyle = th.b;
+  cx.lineWidth = bw;
+  cx.stroke();
+
+  // Accent bar left
+  cx.fillStyle = th.a;
+  cx.fillRect(x + 2, y + Math.round(10 * sc), Math.round(5 * sc), bxH - Math.round(20 * sc));
+  cx.restore();
+
+  // Text
+  cx.save();
+  cx.shadowColor = 'rgba(0,0,0,0.7)';
+  cx.shadowBlur = 8 * sc;
+  cx.shadowOffsetX = 2 * sc;
+  cx.shadowOffsetY = 2 * sc;
+
+  const tx = x + pd + Math.round(10 * sc);
+  lines.forEach((line, i) => {
+    if (i === 0) {
+      cx.fillStyle = th.a;
+      cx.font = `700 ${fs}px 'DM Sans','Segoe UI',sans-serif`;
+    } else {
+      cx.fillStyle = th.t;
+      cx.font = `500 ${Math.round(fs * 0.85)}px 'DM Sans','Segoe UI',sans-serif`;
+    }
+    cx.fillText(line, tx, y + pd + i * lh);
+  });
+  cx.restore();
+
+  document.getElementById('resSec').classList.add('on');
+  document.getElementById('resMeta').textContent = `${cv.width}×${cv.height}px` + (S.upscale > 1 ? ` (upscaled ${S.upscale}x)` : ` (resolusi asli)`);
+  document.getElementById('btnProc').style.display = 'none';
+  document.getElementById('btnReproc').style.display = 'flex';
+  document.getElementById('btnDl').style.display = 'flex';
+  document.getElementById('resSec').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function rr(c, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r);
+  c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  c.lineTo(x+r,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r);
+  c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y); c.closePath();
+}
+
+// =============== DOWNLOAD WITH EXIF ===============
+function d2b(du) {
+  const p = du.split(','), mime = p[0].match(/:(.*?);/)[1];
+  const b = atob(p[1]), a = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
+  return new Blob([a], { type: mime });
+}
+
+function degDms(deg) {
+  const d = Math.floor(deg), mf = (deg - d) * 60, m = Math.floor(mf);
+  const s = Math.round((mf - m) * 60 * 10000);
+  return [[d, 1], [m, 1], [s, 10000]];
+}
+
+function download() {
+  try {
+    const cv = document.getElementById('resC');
+    const jpeg = cv.toDataURL('image/jpeg', S.qual);
+    const loc = getLoc(), dt = getDt();
+    const p = n => String(n).padStart(2, '0');
+    const fn = `WM_${dt.getFullYear()}${p(dt.getMonth()+1)}${p(dt.getDate())}_${p(dt.getHours())}${p(dt.getMinutes())}${p(dt.getSeconds())}.jpg`;
+
+    let final = jpeg;
+    let exifOk = false;
+
+    if (typeof piexif !== 'undefined') {
+      try {
+        const eo = { '0th': {}, 'Exif': {}, 'GPS': {}, '1st': {} };
+        const ed = `${dt.getFullYear()}:${p(dt.getMonth()+1)}:${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`;
+
+        // ASCII-only strings (piexifjs Ascii type cannot handle non-ASCII)
+        eo['0th'][piexif.ImageIFD.DateTime] = ed;
+        eo['0th'][piexif.ImageIFD.Software] = 'Photo Watermark - Muhammad Tajib';
+
+        eo['Exif'][piexif.ExifIFD.DateTimeOriginal] = ed;
+        eo['Exif'][piexif.ExifIFD.DateTimeDigitized] = ed;
+
+        // GPS - GPSAltitudeRef is Byte type, must be array [0]
+        eo['GPS'][piexif.GPSIFD.GPSLatitudeRef] = loc.lat >= 0 ? 'N' : 'S';
+        eo['GPS'][piexif.GPSIFD.GPSLatitude] = degDms(Math.abs(loc.lat));
+        eo['GPS'][piexif.GPSIFD.GPSLongitudeRef] = loc.lng >= 0 ? 'E' : 'W';
+        eo['GPS'][piexif.GPSIFD.GPSLongitude] = degDms(Math.abs(loc.lng));
+        eo['GPS'][piexif.GPSIFD.GPSAltitudeRef] = [0];
+        eo['GPS'][piexif.GPSIFD.GPSAltitude] = [0, 1];
+        eo['GPS'][piexif.GPSIFD.GPSDateStamp] = `${dt.getFullYear()}:${p(dt.getMonth()+1)}:${p(dt.getDate())}`;
+        eo['GPS'][piexif.GPSIFD.GPSTimeStamp] = [[dt.getHours(),1],[dt.getMinutes(),1],[dt.getSeconds(),1]];
+
+        const es = piexif.dump(eo);
+        final = piexif.insert(es, jpeg);
+        exifOk = true;
+        console.log('EXIF embedded OK. Date:', ed, 'GPS:', loc.lat, loc.lng);
+      } catch(ex) {
+        console.error('EXIF error detail:', ex.message, ex.stack);
+      }
+    }
+
+    // Download via Blob (mobile compatible)
+    const blob = d2b(final);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fn;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+
+    setTimeout(() => {
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 2000);
+    }, 100);
+
+    // Update badge
+    const badge = document.getElementById('exifBadge');
+    if (exifOk) {
+      badge.innerHTML = '<span class="exif-badge ok">✅ EXIF GPS + DateTime berhasil disematkan</span>';
+      toast('✅ Foto + EXIF tersimpan!');
+    } else {
+      badge.innerHTML = '<span class="exif-badge no">⚠️ EXIF gagal, foto tanpa metadata</span>';
+      toast('⚠️ Download tanpa EXIF', true);
+    }
+
+  } catch(err) {
+    console.error('Download error:', err);
+    toast('⚠️ Download gagal: ' + err.message, true);
+    // Fallback: open image in new tab
+    try {
+      const cv = document.getElementById('resC');
+      const w = window.open('');
+      if (w) {
+        w.document.write('<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="' + cv.toDataURL('image/jpeg', S.qual) + '" style="max-width:100%"><p style="position:fixed;bottom:20px;left:0;right:0;text-align:center;color:#fff;font-family:sans-serif;font-size:16px">Tekan lama foto → Simpan</p></body></html>');
+        w.document.close();
+      }
+    } catch(e2) { toast('⚠️ Coba screenshot preview saja', true); }
+  }
+}
+
+// =============== TOAST ===============
+function toast(msg, warn) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (warn ? ' warn' : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// =============== INPUT SYNC TO MAP ===============
+document.getElementById('iLat').addEventListener('change', syncMap);
+document.getElementById('iLng').addEventListener('change', syncMap);
+function syncMap() {
+  const lat = parseFloat(document.getElementById('iLat').value);
+  const lng = parseFloat(document.getElementById('iLng').value);
+  if (!isNaN(lat) && !isNaN(lng) && S.map && S.marker) {
+    S.map.setView([lat, lng], 16);
+    S.marker.setLatLng([lat, lng]);
+  }
+  checkReady();
+}
+
+// =============== PWA SERVICE WORKER ===============
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js').then(function(reg) {
+      console.log('[PWA] Service Worker registered, scope:', reg.scope);
+    }).catch(function(err) {
+      console.warn('[PWA] SW registration failed:', err);
+    });
+  });
+}
+
+// PWA Install prompt
+var deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install button
+  var installBtn = document.createElement('button');
+  installBtn.className = 'bsm';
+  installBtn.style.cssText = 'position:fixed;top:12px;right:12px;z-index:200;background:linear-gradient(135deg,#0099cc,#00d4ff);color:#fff;border:none;padding:8px 14px;font-weight:700;box-shadow:0 4px 16px rgba(0,212,255,0.3);';
+  installBtn.textContent = '📲 Install App';
+  installBtn.onclick = function() {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(result) {
+      if (result.outcome === 'accepted') {
+        toast('✅ App terinstall!');
+      }
+      deferredPrompt = null;
+      installBtn.remove();
+    });
+  };
+  document.body.appendChild(installBtn);
+});
+</script>
+</body>
+</html>
